@@ -32,6 +32,14 @@
         @for (suggestion of questionSuggestions; track suggestion) { <button type="button" (click)="useQuestionSuggestion(suggestion)" [disabled]="isAsking">{{ suggestion }}</button> }
       </div>
 
+      @if (questionError) {
+        <div class="assistant-error" role="alert" aria-live="assertive">
+          <mat-icon>cloud_off</mat-icon>
+          <div><strong>Não foi possível concluir a consulta</strong><p>{{ questionError }}</p></div>
+          <button mat-stroked-button type="button" (click)="askQuestion()" [disabled]="isAsking">Tentar novamente</button>
+        </div>
+      }
+
       @if (isAsking) { <div class="answer-loading" role="status"><mat-spinner diameter="24"></mat-spinner><span>Consultando somente as informações autorizadas deste pet…</span></div> }
       @if (answer) {
         <article class="answer-card" aria-live="polite" aria-labelledby="answer-title" [class.insufficient]="answer.insufficientEvidence">
@@ -74,6 +82,13 @@
             {{ isLoading ? 'Organizando…' : 'Gerar rascunho' }}
           </button>
         </form>
+        @if (draftError) {
+          <div class="assistant-error" role="alert" aria-live="assertive">
+            <mat-icon>cloud_off</mat-icon>
+            <div><strong>Seu texto foi preservado</strong><p>{{ draftError }}</p></div>
+            <button mat-stroked-button type="button" (click)="openManual()">Preencher manualmente</button>
+          </div>
+        }
       </section>
 
       @if (recentDrafts.length) {

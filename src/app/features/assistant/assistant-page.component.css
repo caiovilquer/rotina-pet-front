@@ -19,6 +19,9 @@
 .question-suggestions button { min-height: 40px; padding: 8px 12px; border: 1px solid var(--q-border); border-radius: var(--q-radius-pill); background: var(--q-surface-2); color: var(--q-text-2); font: inherit; font-size: .78rem; cursor: pointer; }
 .question-suggestions button:hover { border-color: var(--q-border-2); color: var(--q-ink); }
 .answer-loading { display: flex; align-items: center; gap: 10px; padding: var(--q-space-4); border-radius: var(--q-radius-md); background: var(--q-surface-2); color: var(--q-text-2); }
+.assistant-error { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--q-space-3); padding: var(--q-space-4); border: 1px solid color-mix(in srgb, var(--q-error) 35%, transparent); border-radius: var(--q-radius-md); background: var(--q-error-bg); color: var(--q-error); }
+.assistant-error p { margin: 3px 0 0; color: var(--q-text-2); }
+.assistant-error button { min-height: 44px; }
 .answer-card { display: grid; gap: var(--q-space-3); padding: var(--q-space-5); border: 1px solid var(--q-green-100); border-radius: var(--q-radius-md); background: var(--q-green-50); }
 .answer-card.insufficient { border-color: var(--q-border); background: var(--q-surface-2); }
 .answer-card > header { display: flex; align-items: flex-start; gap: 10px; }
@@ -66,5 +69,5 @@
 .result-card.failure > mat-icon { color: var(--q-error); }
 .result-card a, .result-card button { margin-top: var(--q-space-3); }
 .feedback { display: flex; align-items: center; gap: 4px; margin-top: var(--q-space-3); color: var(--q-text-2); }
-@media (max-width: 720px) { .assistant-hero { display: grid; padding: var(--q-space-4); } .question-card > form { grid-template-columns: 1fr; } .question-card > form > button { min-height: 44px; } .sources li { flex-direction: column; } .sources li button { width: 100%; } .two-col, .recent-grid { grid-template-columns: 1fr; } .review-actions { display: grid; } .review-actions button { width: 100%; } }
+@media (max-width: 720px) { .assistant-hero { display: grid; padding: var(--q-space-4); } .question-card > form { grid-template-columns: 1fr; } .question-card > form > button { min-height: 44px; } .assistant-error { grid-template-columns: auto minmax(0, 1fr); } .assistant-error button { grid-column: 1 / -1; width: 100%; } .sources li { flex-direction: column; } .sources li button { width: 100%; } .two-col, .recent-grid { grid-template-columns: 1fr; } .review-actions { display: grid; } .review-actions button { width: 100%; } }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }

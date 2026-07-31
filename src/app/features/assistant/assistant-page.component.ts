@@ -53,6 +53,8 @@ export class AssistantPageComponent implements OnInit, OnDestroy {
   isAsking = false;
   answer: PetHistoryAnswer | null = null;
   answerFeedbackSent = false;
+  questionError: string | null = null;
+  draftError: string | null = null;
 
   readonly questionSuggestions = [
     'Quando foi a última vacina?',
@@ -173,12 +175,13 @@ export class AssistantPageComponent implements OnInit, OnDestroy {
     const value = this.question.getRawValue();
     this.isAsking = true;
     this.answer = null;
+    this.questionError = null;
     this.answerFeedbackSent = false;
     this.assistant.ask(value.petId!, value.text).subscribe({
       next: answer => { this.answer = answer; this.isAsking = false; },
       error: error => {
         this.isAsking = false;
-        this.toast.error(this.apiError.message(error, 'Não foi possível consultar o histórico agora.'));
+        this.questionError = this.apiError.message(error, 'Não foi possível consultar o histórico agora. Tente novamente.');
       }
     });
   }
@@ -200,8 +203,16 @@ export class AssistantPageComponent implements OnInit, OnDestroy {
     if (citation.sourceType !== 'HEALTH_ATTACHMENT') return;
     this.assistant.attachmentUrl(citation).subscribe({
       next: result => {
+        let url: URL;
+        try {
+          url = new URL(result.url, window.location.origin);
+          if (!['https:', 'http:'].includes(url.protocol)) throw new Error('unsafe_protocol');
+        } catch {
+          this.toast.error('A fonte retornou um endereço inválido e não foi aberta.');
+          return;
+        }
         const anchor = document.createElement('a');
-        anchor.href = result.url; anchor.target = '_blank'; anchor.rel = 'noopener noreferrer';
+        anchor.href = url.href; anchor.target = '_blank'; anchor.rel = 'noopener noreferrer';
         document.body.appendChild(anchor); anchor.click(); anchor.remove();
       },
       error: error => this.toast.error(this.apiError.message(error, 'Não foi possível abrir esta fonte.'))
@@ -231,6 +242,7 @@ export class AssistantPageComponent implements OnInit, OnDestroy {
       return;
     }
     this.isLoading = true;
+    this.draftError = null;
     this.drafts.generate(this.composer.controls.instruction.value).subscribe({
       next: draft => {
         this.isLoading = false;
@@ -238,7 +250,10 @@ export class AssistantPageComponent implements OnInit, OnDestroy {
       },
       error: error => {
         this.isLoading = false;
-        this.toast.error(this.apiError.message(error, 'O assistente não está disponível agora. O formulário manual continua funcionando.'));
+        this.draftError = this.apiError.message(
+          error,
+          'O assistente não está disponível agora. O formulário manual continua funcionando.'
+        );
       }
     });
   }
