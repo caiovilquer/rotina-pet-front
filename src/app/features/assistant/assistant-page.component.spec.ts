@@ -7,7 +7,6 @@ import { of, throwError } from 'rxjs';
 import { CareDraft } from '../../core/models/care-draft.model';
 import { HouseholdOverview, HouseholdSummary } from '../../core/models/household.model';
 import { AssistantService } from '../../core/services/assistant.service';
-import { ApiErrorService } from '../../core/services/api-error.service';
 import { CareDraftService } from '../../core/services/care-draft.service';
 import { DateTimeService } from '../../core/services/datetime.service';
 import { EventStateService } from '../../core/services/event-state.service';
@@ -74,7 +73,7 @@ describe('AssistantPageComponent', () => {
     await TestBed.configureTestingModule({
       imports: [AssistantPageComponent],
       providers: [
-        provideRouter([]), provideNoopAnimations(), DateTimeService, ApiErrorService,
+        provideRouter([]), provideNoopAnimations(), DateTimeService,
         { provide: ActivatedRoute, useValue: route },
         { provide: CareDraftService, useValue: drafts },
         { provide: AssistantService, useValue: assistant },
@@ -95,15 +94,30 @@ describe('AssistantPageComponent', () => {
     drafts.generate.and.returnValue(throwError(() => new HttpErrorResponse({
       status: 502, error: { error: 'AI_PROVIDER_UNAVAILABLE', message: 'internal text must not be required' }
     })));
+    component.selectMode('draft');
     component.composer.controls.instruction.setValue('Dar remédio para Luna amanhã às 08:00');
+    fixture.detectChanges();
 
     component.generate();
     fixture.detectChanges();
 
     expect(component.composer.controls.instruction.value).toContain('Dar remédio');
-    expect(fixture.nativeElement.querySelector('[role="alert"]').textContent).toContain('Seu texto foi preservado');
-    expect(fixture.nativeElement.textContent).toContain('assistente está indisponível');
-    expect(fixture.nativeElement.textContent).toContain('Preencher manualmente');
+    expect(fixture.nativeElement.querySelector('[role="alert"]').textContent).toContain('Sua descrição foi preservada');
+    expect(fixture.nativeElement.textContent).toContain('Assistente temporariamente indisponível');
+    expect(fixture.nativeElement.textContent).toContain('Abrir formulário manual');
+    expect(fixture.nativeElement.textContent).not.toContain('internal text must not be required');
+  });
+
+  it('shows one primary task at a time', () => {
+    expect(fixture.nativeElement.querySelector('#history-panel')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('#draft-panel')).toBeNull();
+
+    component.selectMode('draft');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('#history-panel')).toBeNull();
+    expect(fixture.nativeElement.querySelector('#draft-panel')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Descreva a rotina do seu jeito');
   });
 
   it('requires saving a review before confirmation and then confirms explicitly', () => {
@@ -136,6 +150,39 @@ describe('AssistantPageComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Informação insuficiente');
     expect(fixture.nativeElement.textContent).toContain('Não encontrei informação suficiente');
     expect(fixture.nativeElement.querySelector('.sources')).toBeNull();
+  });
+
+  it('renders model markdown as safe paragraphs and lists', () => {
+    assistant.ask.and.returnValue(of({
+      answerId: 'answer-2', kind: 'RAG',
+      answer: '## Resumo\nA **vacina** está em dia.\n\n- Aplicada em julho\n- [Ver registro](javascript:alert(1))',
+      citations: [], insufficientEvidence: false, suggestedFollowUps: [],
+      generatedAt: '2026-07-31T12:00:00Z'
+    }));
+    component.question.setValue({ petId: 1, text: 'A vacina está em dia?' });
+
+    component.askQuestion();
+    fixture.detectChanges();
+
+    const content = fixture.nativeElement.querySelector('.answer-content') as HTMLElement;
+    expect(content.querySelectorAll('p').length).toBe(1);
+    expect(content.querySelectorAll('li').length).toBe(2);
+    expect(content.textContent).toContain('A vacina está em dia.');
+    expect(content.innerHTML).not.toContain('**');
+    expect(content.innerHTML).not.toContain('javascript:');
+  });
+
+  it('replaces unknown warning copy instead of rendering the model payload', () => {
+    component['setDraft']({
+      ...readyDraft,
+      status: 'NEEDS_INPUT',
+      warnings: [{ code: 'UNKNOWN_WARNING', message: 'raw provider payload secret-123', blocking: true }],
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Revisão necessária');
+    expect(fixture.nativeElement.textContent).not.toContain('raw provider payload');
+    expect(fixture.nativeElement.textContent).not.toContain('secret-123');
   });
 
   it('opens only safe citation URLs with opener isolation', () => {

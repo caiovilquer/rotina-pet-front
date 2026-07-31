@@ -18,7 +18,12 @@ import { CURRENCY_OPTIONS, normalizeCurrency } from '../../core/models/currency.
 import { EventType } from '../../core/models/event.model';
 import { DEFAULT_HOUSEHOLD_TIMEZONE, HouseholdMember, HouseholdSummary } from '../../core/models/household.model';
 import { PetSummary } from '../../core/models/pet.model';
-import { ApiErrorService } from '../../core/services/api-error.service';
+import {
+  AssistantNotice,
+  AssistantPresentationService,
+  AssistantTextBlock,
+  AssistantWarningView,
+} from '../../core/services/assistant-presentation.service';
 import { AssistantService } from '../../core/services/assistant.service';
 import { CareDraftService } from '../../core/services/care-draft.service';
 import { DateTimeService } from '../../core/services/datetime.service';
@@ -37,7 +42,7 @@ import { buildScheduleRule, parseDailyTimes } from '../../shared/components/care
     MatFormFieldModule, MatIconModule, MatInputModule, MatProgressSpinnerModule, MatSelectModule
   ],
   templateUrl: './assistant-page.component.html',
-  styleUrls: ['./assistant-page.component.css']
+  styleUrls: ['./assistant-page.component.css', './assistant-page-review.component.css']
 })
 export class AssistantPageComponent implements OnInit, OnDestroy {
   private readonly fb = inject(FormBuilder);
@@ -50,17 +55,24 @@ export class AssistantPageComponent implements OnInit, OnDestroy {
   isLoading = false;
   isSaving = false;
   isConfirming = false;
+  isCancelling = false;
   isAsking = false;
   answer: PetHistoryAnswer | null = null;
   answerFeedbackSent = false;
-  questionError: string | null = null;
-  draftError: string | null = null;
+  activeMode: 'history' | 'draft' = 'history';
+  questionError: AssistantNotice | null = null;
+  draftError: AssistantNotice | null = null;
+  reviewNotice: AssistantNotice | null = null;
 
   readonly questionSuggestions = [
     'Quando foi a última vacina?',
     'Quais cuidados estão atrasados?',
     'Como evoluiu o peso nos últimos meses?',
     'O que consta nas notas e documentos?',
+  ];
+  readonly composerSuggestions = [
+    'Dar o remédio da Luna amanhã às 8h e 20h por 7 dias',
+    'Agendar a vacina anual do Bento para 15 de agosto às 10h',
   ];
 
   readonly question = this.fb.group({
@@ -124,7 +136,7 @@ export class AssistantPageComponent implements OnInit, OnDestroy {
     private readonly households: HouseholdService,
     private readonly dateTime: DateTimeService,
     private readonly toast: ToastService,
-    private readonly apiError: ApiErrorService,
+    readonly presentation: AssistantPresentationService,
     private readonly events: EventStateService,
     private readonly route: ActivatedRoute,
     private readonly router: Router,
@@ -151,7 +163,7 @@ export class AssistantPageComponent implements OnInit, OnDestroy {
         const selected = page.items.find(item => item.id === requestedPetId) || page.items[0];
         if (selected) this.question.controls.petId.setValue(selected.id);
       },
-      error: error => this.toast.error(this.apiError.message(error, 'Não foi possível carregar seus pets.'))
+      error: () => this.toast.error('Não foi possível carregar os pets desta família.')
     });
     this.subscriptions.add(this.route.paramMap.subscribe(params => {
       const id = params.get('draftId');
@@ -165,7 +177,35 @@ export class AssistantPageComponent implements OnInit, OnDestroy {
   get canCreate(): boolean { return this.currentHousehold?.role === 'OWNER'; }
   get isRecurring(): boolean { return this.review.controls.scheduleKind.value !== 'ONE_TIME'; }
   get canEdit(): boolean { return !!this.draft && ['READY', 'NEEDS_INPUT'].includes(this.draft.status); }
-  get canConfirm(): boolean { return this.draft?.status === 'READY' && !this.review.dirty; }
+  get canConfirm(): boolean {
+    return this.draft?.status === 'READY' && this.review.valid && this.scheduleIsValid() && !this.review.dirty;
+  }
+  get answerBlocks(): AssistantTextBlock[] { return this.presentation.textBlocks(this.answer?.answer); }
+  get visibleWarnings(): AssistantWarningView[] {
+    return (this.draft?.warnings ?? []).map(warning => this.presentation.warning(warning));
+  }
+  get missingFieldNames(): string[] {
+    return (this.draft?.missingFields ?? []).map(field => this.presentation.fieldLabel(field));
+  }
+  get missingFieldsText(): string {
+    const fields = this.missingFieldNames;
+    if (!fields.length) return '';
+    const list = fields.length === 1 ? fields[0] : `${fields.slice(0, -1).join(', ')} e ${fields.at(-1)}`;
+    return `${fields.length === 1 ? 'Falta confirmar' : 'Faltam confirmar'}: ${list}.`;
+  }
+  get draftFailure(): AssistantNotice { return this.presentation.failure(this.draft?.failureCode); }
+  get reviewActionHint(): string {
+    if (this.review.dirty) return 'Salve suas alterações para liberar a confirmação.';
+    if (this.draft?.status === 'NEEDS_INPUT' || this.review.invalid || !this.scheduleIsValid()) {
+      return 'Preencha os campos indicados e salve a revisão antes de confirmar.';
+    }
+    return 'Tudo revisado. O plano só entra na agenda depois da sua confirmação.';
+  }
+
+  selectMode(mode: 'history' | 'draft'): void {
+    if (mode === 'draft' && !this.canCreate) return;
+    this.activeMode = mode;
+  }
 
   askQuestion(): void {
     if (this.question.invalid) {
@@ -181,7 +221,7 @@ export class AssistantPageComponent implements OnInit, OnDestroy {
       next: answer => { this.answer = answer; this.isAsking = false; },
       error: error => {
         this.isAsking = false;
-        this.questionError = this.apiError.message(error, 'Não foi possível consultar o histórico agora. Tente novamente.');
+        this.questionError = this.presentation.error(error, 'question');
       }
     });
   }
@@ -215,7 +255,7 @@ export class AssistantPageComponent implements OnInit, OnDestroy {
         anchor.href = url.href; anchor.target = '_blank'; anchor.rel = 'noopener noreferrer';
         document.body.appendChild(anchor); anchor.click(); anchor.remove();
       },
-      error: error => this.toast.error(this.apiError.message(error, 'Não foi possível abrir esta fonte.'))
+      error: error => this.toast.error(this.presentation.error(error, 'source').message)
     });
   }
 
@@ -236,6 +276,28 @@ export class AssistantPageComponent implements OnInit, OnDestroy {
     return answer.insufficientEvidence ? 'manage_search' : 'verified';
   }
 
+  safeCitationTitle(citation: AssistantCitation): string {
+    return this.presentation.plainText(citation.title, 160) || 'Fonte sem título';
+  }
+
+  safeCitationExcerpt(citation: AssistantCitation): string {
+    return this.presentation.plainText(citation.excerpt, 500) || 'Trecho não disponível.';
+  }
+
+  safeFollowUp(value: string): string {
+    return this.presentation.plainText(value, 240);
+  }
+
+  safeDraftTitle(value: string | null): string {
+    return this.presentation.plainText(value, 120) || 'Rascunho sem título';
+  }
+
+  useComposerSuggestion(value: string): void {
+    this.composer.controls.instruction.setValue(value);
+    this.composer.controls.instruction.markAsDirty();
+    this.draftError = null;
+  }
+
   generate(): void {
     if (this.composer.invalid || !this.canCreate) {
       this.composer.markAllAsTouched();
@@ -250,10 +312,7 @@ export class AssistantPageComponent implements OnInit, OnDestroy {
       },
       error: error => {
         this.isLoading = false;
-        this.draftError = this.apiError.message(
-          error,
-          'O assistente não está disponível agora. O formulário manual continua funcionando.'
-        );
+        this.draftError = this.presentation.error(error, 'draft');
       }
     });
   }
@@ -266,6 +325,7 @@ export class AssistantPageComponent implements OnInit, OnDestroy {
       return;
     }
     this.isSaving = true;
+    this.reviewNotice = null;
     this.drafts.correct(this.draft.id, this.draft.version, this.toCarePlanRequest()).subscribe({
       next: draft => {
         this.isSaving = false;
@@ -274,7 +334,7 @@ export class AssistantPageComponent implements OnInit, OnDestroy {
       },
       error: error => {
         this.isSaving = false;
-        this.toast.error(this.apiError.message(error, 'Não foi possível salvar a revisão.'));
+        this.reviewNotice = this.presentation.error(error, 'review');
       }
     });
   }
@@ -282,6 +342,7 @@ export class AssistantPageComponent implements OnInit, OnDestroy {
   confirm(): void {
     if (!this.draft || !this.canConfirm) return;
     this.isConfirming = true;
+    this.reviewNotice = null;
     this.drafts.confirm(this.draft.id, this.draft.version).subscribe({
       next: result => {
         this.isConfirming = false;
@@ -291,16 +352,18 @@ export class AssistantPageComponent implements OnInit, OnDestroy {
       },
       error: error => {
         this.isConfirming = false;
-        this.toast.error(this.apiError.message(error, 'Não foi possível confirmar o plano.'));
+        this.reviewNotice = this.presentation.error(error, 'confirm');
       }
     });
   }
 
   cancel(): void {
     if (!this.draft || !this.canEdit) return;
+    this.isCancelling = true;
+    this.reviewNotice = null;
     this.drafts.cancel(this.draft.id, this.draft.version).subscribe({
-      next: draft => { this.setDraft(draft); this.toast.success('Rascunho cancelado.'); },
-      error: error => this.toast.error(this.apiError.message(error, 'Não foi possível cancelar o rascunho.'))
+      next: draft => { this.isCancelling = false; this.setDraft(draft); this.toast.success('Rascunho cancelado.'); },
+      error: error => { this.isCancelling = false; this.reviewNotice = this.presentation.error(error, 'cancel'); }
     });
   }
 
@@ -342,7 +405,7 @@ export class AssistantPageComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.drafts.get(id).subscribe({
       next: draft => { this.isLoading = false; this.setDraft(draft); },
-      error: error => { this.isLoading = false; this.toast.error(this.apiError.message(error, 'Rascunho não encontrado.')); }
+      error: error => { this.isLoading = false; this.toast.error(this.presentation.error(error, 'load').message); }
     });
   }
 
@@ -353,6 +416,7 @@ export class AssistantPageComponent implements OnInit, OnDestroy {
 
   private setDraft(draft: CareDraft): void {
     this.draft = draft;
+    this.reviewNotice = null;
     const fields = draft.fields;
     const local = fields.startAtLocal || '';
     const [dateStart = '', rawTime = ''] = local.split('T');
