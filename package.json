@@ -28,6 +28,7 @@
   "scripts": {
     "ng": "ng",
     "start": "npm run set-env && ng serve",
+    "dev": "npm start",
     "start:dev": "npm run set-env && ng serve",
     "start:https": "npm run set-env && ng serve --proxy-config proxy.conf.https.json",
     "start:no-proxy": "npm run set-env && ng serve --proxy-config false",

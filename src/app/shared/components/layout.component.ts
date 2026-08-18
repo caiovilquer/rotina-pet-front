@@ -79,7 +79,7 @@ import { FooterComponent } from './ui/footer.component';
                   [attr.aria-label]="'Notificações: ' + upcomingEventsCount + ' cuidados próximos'">
             <mat-icon>notifications_none</mat-icon>
             @if (upcomingEventsCount > 0) {
-              <span class="badge">{{ upcomingEventsCount > 9 ? '9+' : upcomingEventsCount }}</span>
+              <span class="badge" aria-hidden="true">{{ upcomingEventsCount > 9 ? '9+' : upcomingEventsCount }}</span>
             }
           </button>
           <button mat-icon-button [matMenuTriggerFor]="userMenu" class="avatar-btn" aria-label="Abrir menu da conta">
@@ -210,8 +210,17 @@ import { FooterComponent } from './ui/footer.component';
     .family-menu-title small { color: var(--q-text-2); }
     .menu-section-title { padding: 12px 16px 6px; color: var(--q-text-3); font-size: .7rem; font-weight: 750; letter-spacing: .07em; text-transform: uppercase; }
 
-    .bell { position: relative; }
-    .badge { position: absolute; top: 5px; right: 4px; min-width: 17px; height: 17px; padding: 0 4px; display: grid; place-items: center; border-radius: 9px; background: var(--q-ipe-500); color: #3A2D00; font-size: .6563rem; font-weight: 800; pointer-events: none; }
+    .bell { position: relative; isolation: isolate; overflow: visible; }
+    .bell .mat-icon { position: relative; z-index: 0; }
+    .badge {
+      position: absolute; top: 2px; right: 0; z-index: 1;
+      min-width: 18px; height: 18px; padding: 0 5px;
+      display: grid; place-items: center; box-sizing: border-box;
+      line-height: 1; white-space: nowrap;
+      border-radius: 9px; background: var(--q-ipe-500); color: #3A2D00;
+      font-size: .6563rem; font-weight: 800; pointer-events: none;
+      box-shadow: 0 0 0 2px var(--q-bg);
+    }
     .avatar-btn { width: 40px; height: 40px; padding: 0; flex: none; overflow: hidden; display: inline-flex; align-items: center; justify-content: center; }
     .avatar-img, .avatar-fallback { width: 32px; height: 32px; aspect-ratio: 1; border-radius: var(--q-organic-1); flex: none; }
     .avatar-img { display: block; object-fit: cover; }
