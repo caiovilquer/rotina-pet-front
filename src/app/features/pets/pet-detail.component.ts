@@ -37,6 +37,8 @@ import { SkeletonComponent } from '../../shared/components/ui/skeleton.component
 import { PetFormComponent } from './pet-form.component';
 import { HouseholdService } from '../../core/services/household.service';
 import { DEFAULT_HOUSEHOLD_TIMEZONE } from '../../core/models/household.model';
+import { KnowledgeSource, KnowledgeSourceStatus } from '../../core/models/assistant.model';
+import { AssistantService } from '../../core/services/assistant.service';
 
 type QuickAction = { label: string; helper: string; icon: string; recordType?: HealthRecordType; measurementType?: HealthMeasurementType };
 
@@ -82,6 +84,7 @@ export class PetDetailComponent implements OnInit {
   canManagePet = false;
   canRecordHealth = false;
   householdTimezone = DEFAULT_HOUSEHOLD_TIMEZONE;
+  knowledgeSources = new Map<string, KnowledgeSource>();
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -96,6 +99,7 @@ export class PetDetailComponent implements OnInit {
     private readonly apiError: ApiErrorService,
     private readonly userState: UserStateService,
     private readonly householdService: HouseholdService,
+    private readonly assistant: AssistantService,
   ) {}
 
   ngOnInit(): void {
@@ -113,12 +117,14 @@ export class PetDetailComponent implements OnInit {
       this.loadRecentEvents();
       this.loadRecords(true);
       this.loadMeasurements();
+      this.loadKnowledgeSources();
     });
   }
 
   goBack(): void { void this.router.navigate(['/pets']); }
   viewAllEvents(): void { void this.router.navigate(['/events/pet', this.petId]); }
   viewReport(): void { void this.router.navigate(['/care-center'], { queryParams: { petId: this.petId } }); }
+  askAboutPet(): void { void this.router.navigate(['/assistant'], { queryParams: { petId: this.petId } }); }
 
   editPet(): void {
     if (!this.pet) return;
@@ -242,6 +248,27 @@ export class PetDetailComponent implements OnInit {
     return (this.dateTime.parseAPIDate(event.dueAt, event.timezone || this.householdTimezone)?.getTime() || 0) < Date.now() ? 'Atrasado' : 'Pendente';
   }
 
+  knowledgeStatus(mediaAssetId: string): KnowledgeSourceStatus | null {
+    return this.knowledgeSources.get(mediaAssetId)?.status || null;
+  }
+
+  knowledgeStatusLabel(mediaAssetId: string): string {
+    const status = this.knowledgeStatus(mediaAssetId);
+    if (status === 'READY') return 'Disponível no assistente';
+    if (status === 'FAILED') return 'Não foi possível preparar';
+    if (status === 'PENDING' || status === 'INDEXING') return 'Preparando para pesquisa';
+    return 'Ainda não preparado para pesquisa';
+  }
+
+  retryKnowledge(mediaAssetId: string): void {
+    const source = this.knowledgeSources.get(mediaAssetId);
+    if (!source || source.status !== 'FAILED') return;
+    this.assistant.reindex(source.id).subscribe({
+      next: updated => { this.knowledgeSources.set(mediaAssetId, updated); this.toast.success('Vamos preparar o documento novamente.'); },
+      error: error => this.toast.error(this.apiError.message(error, 'Não foi possível tentar novamente.'))
+    });
+  }
+
   private loadPetDetails(): void {
     this.isLoading = true;
     this.petService.getByIdCached(this.petId).subscribe({
@@ -275,6 +302,7 @@ export class PetDetailComponent implements OnInit {
       next: page => {
         this.records = reset ? page.items : [...this.records, ...page.items];
         this.recordTotal = page.total; this.isLoadingRecords = false; this.isLoadingMore = false;
+        this.loadKnowledgeSources();
       },
       error: error => {
         this.isLoadingRecords = false; this.isLoadingMore = false;
@@ -291,6 +319,14 @@ export class PetDetailComponent implements OnInit {
         this.isLoadingMeasurements = false;
         this.toast.error(this.apiError.message(error, 'Não foi possível carregar as medições.'));
       }
+    });
+  }
+
+  private loadKnowledgeSources(): void {
+    if (this.petId <= 0) return;
+    this.assistant.knowledgeSources(this.petId).subscribe({
+      next: sources => this.knowledgeSources = new Map(sources.map(source => [source.resourceId, source])),
+      error: () => this.knowledgeSources = new Map()
     });
   }
 }

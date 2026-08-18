@@ -1,0 +1,360 @@
+<section class="assistant-shell" aria-labelledby="assistant-title">
+  <header class="assistant-hero">
+    <div class="hero-copy">
+      <p class="q-overline">Caderno de cuidado</p>
+      <h1 id="assistant-title">Encontre o que importa. Organize o próximo cuidado.</h1>
+      <p>O assistente consulta a rotina da família e prepara rascunhos que você revisa antes de levar à agenda.</p>
+    </div>
+    @if (canCreate && activeMode === 'draft' && !draft) {
+      <button mat-stroked-button type="button" (click)="openManual()">
+        <mat-icon>edit_note</mat-icon>
+        Cadastrar sem assistente
+      </button>
+    }
+  </header>
+
+  @if (!draft) {
+    <aside class="assurance-rail" aria-label="Como o assistente protege sua rotina">
+      <div><mat-icon>family_restroom</mat-icon><span>Só consulta dados desta família</span></div>
+      <div><mat-icon>library_books</mat-icon><span>Mostra as fontes quando usa documentos</span></div>
+      <div><mat-icon>fact_check</mat-icon><span>Nada entra na agenda sem sua confirmação</span></div>
+    </aside>
+
+    @if (canCreate) {
+      <nav class="task-switch" aria-label="Escolha o que deseja fazer">
+        <button
+          id="history-tab"
+          type="button"
+          [class.active]="activeMode === 'history'"
+          [attr.aria-pressed]="activeMode === 'history'"
+          aria-controls="history-panel"
+          (click)="selectMode('history')">
+          <mat-icon>manage_search</mat-icon>
+          <span><strong>Consultar histórico</strong><small>Agenda, saúde e documentos</small></span>
+        </button>
+        <button
+          id="draft-tab"
+          type="button"
+          [class.active]="activeMode === 'draft'"
+          [attr.aria-pressed]="activeMode === 'draft'"
+          aria-controls="draft-panel"
+          (click)="selectMode('draft')">
+          <mat-icon>note_add</mat-icon>
+          <span><strong>Criar cuidado</strong><small>Rascunho para revisar</small></span>
+        </button>
+      </nav>
+    }
+
+    @if (activeMode === 'history' || !canCreate) {
+      <section id="history-panel" aria-labelledby="question-title" class="workspace-card question-card">
+        <div class="section-heading">
+          <span class="section-number" aria-hidden="true">01</span>
+          <div>
+            <p class="q-overline">Consulta protegida</p>
+            <h2 id="question-title">O que você quer saber sobre seu pet?</h2>
+            <p>Datas e medições vêm dos registros exatos. Informações de notas e documentos aparecem com a fonte usada.</p>
+          </div>
+        </div>
+
+        <form [formGroup]="question" (ngSubmit)="askQuestion()">
+          <mat-form-field appearance="outline" class="pet-field">
+            <mat-label>Pet</mat-label>
+            <mat-select formControlName="petId">
+              @for (pet of pets; track pet.id) { <mat-option [value]="pet.id">{{ pet.name }}</mat-option> }
+            </mat-select>
+            <mat-error>Escolha o pet da consulta</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="question-input">
+            <mat-label>Sua pergunta</mat-label>
+            <textarea matInput formControlName="text" rows="4" maxlength="1000" placeholder="Ex.: Quando foi a última vacina e qual documento confirma essa data?"></textarea>
+            <mat-hint>Faça uma pergunta por vez para receber uma resposta mais precisa</mat-hint>
+            <mat-hint align="end">{{ question.controls.text.value.length }}/1000</mat-hint>
+            <mat-error>Escreva o que você quer encontrar</mat-error>
+          </mat-form-field>
+
+          <div class="question-suggestions" aria-label="Exemplos de perguntas">
+            <span>Experimente perguntar</span>
+            <div>
+              @for (suggestion of questionSuggestions; track suggestion) {
+                <button type="button" (click)="useQuestionSuggestion(suggestion)" [disabled]="isAsking">{{ suggestion }}</button>
+              }
+            </div>
+          </div>
+
+          <div class="form-submit">
+            <p><mat-icon>lock</mat-icon>A consulta respeita as permissões da família.</p>
+            <button mat-flat-button type="submit" [disabled]="isAsking || !pets.length">
+              @if (isAsking) { <mat-spinner diameter="18"></mat-spinner> }
+              {{ isAsking ? 'Consultando histórico' : 'Consultar histórico' }}
+            </button>
+          </div>
+        </form>
+
+        @if (questionError) {
+          <div class="assistant-notice error" role="alert" aria-live="assertive">
+            <mat-icon>{{ questionError.icon }}</mat-icon>
+            <div><strong>{{ questionError.title }}</strong><p>{{ questionError.message }}</p></div>
+            @if (questionError.retryable) {
+              <button mat-stroked-button type="button" (click)="askQuestion()" [disabled]="isAsking">Tentar novamente</button>
+            }
+          </div>
+        }
+
+        @if (isAsking) {
+          <div class="answer-loading" role="status" aria-live="polite" aria-busy="true">
+            <div class="loading-heading"><mat-spinner diameter="24"></mat-spinner><div><strong>Consultando as informações autorizadas</strong><span>Agenda, registros e fontes deste pet</span></div></div>
+            <div class="skeleton-lines" aria-hidden="true"><i></i><i></i><i></i></div>
+          </div>
+        }
+
+        @if (answer) {
+          <article class="answer-card" aria-live="polite" aria-labelledby="answer-title" [class.insufficient]="answer.insufficientEvidence">
+            <header>
+              <span class="answer-icon"><mat-icon>{{ answerIcon(answer) }}</mat-icon></span>
+              <div><p class="q-overline">Resposta verificada</p><h3 id="answer-title">{{ answerTitle(answer) }}</h3></div>
+            </header>
+
+            <div class="answer-content">
+              @for (block of answerBlocks; track $index) {
+                @if (block.type === 'paragraph') {
+                  <p>{{ block.text }}</p>
+                } @else {
+                  <ul>@for (item of block.items; track item) { <li>{{ item }}</li> }</ul>
+                }
+              }
+            </div>
+
+            @if (answer.citations.length) {
+              <section class="sources" aria-labelledby="sources-title">
+                <header><div><h4 id="sources-title">Fontes consultadas</h4><p>{{ answer.citations.length }} {{ answer.citations.length === 1 ? 'fonte sustenta' : 'fontes sustentam' }} esta resposta</p></div><mat-icon>verified</mat-icon></header>
+                <ol>
+                  @for (citation of answer.citations; track citation.sourceId + ':' + citation.page + ':' + $index) {
+                    <li>
+                      <details>
+                        <summary>
+                          <span class="source-index">{{ $index + 1 }}</span>
+                          <span class="source-title"><small>{{ citationType(citation) }} @if (citation.page) { · página {{ citation.page }} }</small><strong>{{ safeCitationTitle(citation) }}</strong></span>
+                          <mat-icon aria-hidden="true">expand_more</mat-icon>
+                        </summary>
+                        <div class="source-body">
+                          <blockquote>{{ safeCitationExcerpt(citation) }}</blockquote>
+                          @if (citation.sourceType === 'HEALTH_ATTACHMENT') {
+                            <button mat-stroked-button type="button" (click)="openCitation(citation)"><mat-icon>open_in_new</mat-icon>Abrir documento</button>
+                          }
+                        </div>
+                      </details>
+                    </li>
+                  }
+                </ol>
+              </section>
+            }
+
+            @if (answer.suggestedFollowUps.length) {
+              <section class="follow-ups" aria-labelledby="follow-up-title">
+                <h4 id="follow-up-title">Você também pode perguntar</h4>
+                <div>
+                  @for (item of answer.suggestedFollowUps; track item) {
+                    <button type="button" (click)="useQuestionSuggestion(safeFollowUp(item))" [disabled]="isAsking"><span>{{ safeFollowUp(item) }}</span><mat-icon>arrow_forward</mat-icon></button>
+                  }
+                </div>
+              </section>
+            }
+
+            <footer class="answer-feedback">
+              <span>{{ answerFeedbackSent ? 'Feedback registrado. Obrigado.' : 'Esta resposta ajudou?' }}</span>
+              @if (!answerFeedbackSent) {
+                <button mat-icon-button type="button" (click)="sendAnswerFeedback(true)" aria-label="A resposta foi útil"><mat-icon>thumb_up</mat-icon></button>
+                <button mat-icon-button type="button" (click)="sendAnswerFeedback(false)" aria-label="A resposta não foi útil"><mat-icon>thumb_down</mat-icon></button>
+              } @else { <mat-icon aria-hidden="true">check_circle</mat-icon> }
+            </footer>
+          </article>
+        }
+      </section>
+
+      @if (!canCreate) {
+        <div class="access-card" role="status">
+          <mat-icon>lock</mat-icon>
+          <div><strong>Consulta disponível para o seu acesso</strong><p>A criação de novos cuidados fica reservada aos proprietários desta família.</p></div>
+        </div>
+      }
+    } @else {
+      <section id="draft-panel" aria-labelledby="composer-title" class="workspace-card composer-card">
+        <div class="section-heading">
+          <span class="section-number" aria-hidden="true">02</span>
+          <div>
+            <p class="q-overline">Novo cuidado</p>
+            <h2 id="composer-title">Descreva a rotina do seu jeito</h2>
+            <p>Inclua o pet, o que precisa ser feito, quando começa e como se repete. Você poderá corrigir tudo na próxima etapa.</p>
+          </div>
+        </div>
+
+        <form [formGroup]="composer" (ngSubmit)="generate()">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Descrição do cuidado</mat-label>
+            <textarea matInput formControlName="instruction" rows="6" maxlength="4000" placeholder="Ex.: Dar o remédio da Luna amanhã às 8h e 20h, todos os dias por 7 dias"></textarea>
+            <mat-hint>Não inclua doses ou orientações que não tenham sido confirmadas por um profissional</mat-hint>
+            <mat-hint align="end">{{ composer.controls.instruction.value.length }}/4000</mat-hint>
+            <mat-error>Descreva o cuidado antes de continuar</mat-error>
+          </mat-form-field>
+
+          <div class="composer-suggestions" aria-label="Exemplos de descrição">
+            <span>Usar como ponto de partida</span>
+            @for (suggestion of composerSuggestions; track suggestion) {
+              <button type="button" (click)="useComposerSuggestion(suggestion)"><mat-icon>add</mat-icon>{{ suggestion }}</button>
+            }
+          </div>
+
+          <div class="composer-safety">
+            <mat-icon>health_and_safety</mat-icon>
+            <div><strong>Você mantém o controle</strong><span>O assistente organiza o texto, mas não diagnostica, prescreve nem completa informações clínicas ausentes.</span></div>
+          </div>
+
+          <div class="form-submit">
+            <button mat-flat-button type="submit" [disabled]="isLoading">
+              @if (isLoading) { <mat-spinner diameter="18"></mat-spinner> }
+              {{ isLoading ? 'Preparando rascunho' : 'Preparar para revisão' }}
+            </button>
+          </div>
+        </form>
+
+        @if (isLoading) {
+          <div class="draft-loading" role="status" aria-live="polite" aria-busy="true">
+            <mat-spinner diameter="24"></mat-spinner>
+            <div><strong>Organizando sua descrição</strong><p>Estamos separando pet, horários e repetição. Nada será criado sem sua revisão.</p></div>
+          </div>
+        }
+
+        @if (draftError) {
+          <div class="assistant-notice error" role="alert" aria-live="assertive">
+            <mat-icon>{{ draftError.icon }}</mat-icon>
+            <div><strong>{{ draftError.title }}</strong><p>{{ draftError.message }}</p></div>
+            <div class="notice-actions">
+              @if (draftError.retryable) { <button mat-stroked-button type="button" (click)="generate()" [disabled]="isLoading">Tentar novamente</button> }
+              @if (draftError.manualFallback) { <button mat-button type="button" (click)="openManual()">Abrir formulário manual</button> }
+            </div>
+          </div>
+        }
+      </section>
+
+      <section class="recent" aria-labelledby="recent-title">
+        <header><div><p class="q-overline">Continue de onde parou</p><h2 id="recent-title">Rascunhos recentes</h2></div><span>{{ recentDrafts.length }} de 6</span></header>
+        @if (recentDrafts.length) {
+          <div class="recent-list">
+            @for (item of recentDrafts; track item.id) {
+              <a [routerLink]="['/assistant/drafts', item.id]">
+                <span class="draft-mark"><mat-icon>description</mat-icon></span>
+                <span class="draft-summary"><strong>{{ safeDraftTitle(item.fields.title) }}</strong><small>Atualizado em {{ item.updatedAt | date:'dd/MM/yyyy, HH:mm' }}</small></span>
+                <span class="status status-{{ item.status.toLowerCase() }}">{{ statusLabel(item.status) }}</span>
+                <mat-icon class="row-arrow" aria-hidden="true">arrow_forward</mat-icon>
+              </a>
+            }
+          </div>
+        } @else {
+          <div class="recent-empty"><mat-icon>note_stack</mat-icon><div><strong>Nenhum rascunho em andamento</strong><p>Quando você preparar um cuidado, ele ficará disponível aqui até ser confirmado ou cancelado.</p></div></div>
+        }
+      </section>
+    }
+  } @else {
+    <div class="draft-toolbar">
+      <a mat-button routerLink="/assistant"><mat-icon>arrow_back</mat-icon>Voltar ao assistente</a>
+      <span class="status status-{{ draft.status.toLowerCase() }}" role="status">{{ statusLabel(draft.status) }}</span>
+    </div>
+
+    @if (visibleWarnings.length) {
+      <section class="warnings" aria-label="Pontos que precisam de atenção" aria-live="polite">
+        @for (warning of visibleWarnings; track warning.code) {
+          <div [class.blocking]="warning.blocking"><mat-icon>{{ warning.icon }}</mat-icon><div><strong>{{ warning.title }}</strong><p>{{ warning.message }}</p></div></div>
+        }
+      </section>
+    }
+
+    @if (draft.status === 'FAILED') {
+      <section class="result-card failure" role="alert">
+        <mat-icon>{{ draftFailure.icon }}</mat-icon>
+        <div><p class="q-overline">Nenhuma alteração na agenda</p><h2>{{ draftFailure.title }}</h2><p>{{ draftFailure.message }}</p><div class="result-actions"><a mat-stroked-button routerLink="/assistant">Tentar outra descrição</a><button mat-flat-button type="button" (click)="openManual()">Abrir formulário manual</button></div></div>
+      </section>
+    } @else if (draft.status === 'CONFIRMED') {
+      <section class="result-card success" aria-live="polite">
+        <mat-icon>check_circle</mat-icon>
+        <div><p class="q-overline">Revisão concluída</p><h2>Plano criado na agenda</h2><p>O cuidado já está disponível para a família. Repetir a confirmação não cria outro plano.</p><a mat-flat-button routerLink="/events">Abrir agenda</a><div class="feedback"><span>O rascunho ajudou?</span><button mat-icon-button (click)="sendFeedback(true)" aria-label="O rascunho foi útil"><mat-icon>thumb_up</mat-icon></button><button mat-icon-button (click)="sendFeedback(false)" aria-label="O rascunho não foi útil"><mat-icon>thumb_down</mat-icon></button></div></div>
+      </section>
+    } @else if (draft.status === 'CANCELLED' || draft.status === 'EXPIRED') {
+      <section class="result-card">
+        <mat-icon>event_busy</mat-icon>
+        <div><p class="q-overline">Nenhuma alteração na agenda</p><h2>Rascunho {{ draft.status === 'EXPIRED' ? 'expirado' : 'cancelado' }}</h2><p>Prepare um novo rascunho ou cadastre o cuidado pelo formulário manual.</p><a mat-stroked-button routerLink="/assistant">Voltar ao assistente</a></div>
+      </section>
+    } @else {
+      <section class="workspace-card review-card" aria-labelledby="review-title">
+        <div class="section-heading">
+          <span class="section-number" aria-hidden="true">03</span>
+          <div><p class="q-overline">Sua decisão</p><h2 id="review-title">Revise antes de criar o plano</h2><p>Confira especialmente os campos marcados para revisão. Valores informados por você permanecem identificados.</p></div>
+        </div>
+
+        @if (missingFieldNames.length) {
+          <div class="missing-summary" role="status"><mat-icon>edit_note</mat-icon><div><strong>O rascunho ainda precisa de você</strong><p>{{ missingFieldsText }}</p></div></div>
+        }
+
+        <form [formGroup]="review" (ngSubmit)="saveReview()">
+          <fieldset class="review-section">
+            <legend><span>1</span><div><strong>O cuidado</strong><small>Para quem e o que precisa ser feito</small></div></legend>
+            <div class="field-block">
+              <div class="field-meta"><span>Pet</span><span class="provenance p-{{ provenance('PET')?.toLowerCase() }}">{{ provenanceLabel('PET') }}</span></div>
+              <mat-form-field appearance="outline"><mat-label>Pet</mat-label><mat-select formControlName="petId">@for (pet of pets; track pet.id) { <mat-option [value]="pet.id">{{ pet.name }}</mat-option> }</mat-select><mat-error>Escolha o pet</mat-error></mat-form-field>
+            </div>
+            <div class="two-col">
+              <div class="field-block"><div class="field-meta"><span>Categoria</span><span class="provenance p-{{ provenance('TYPE')?.toLowerCase() }}">{{ provenanceLabel('TYPE') }}</span></div><mat-form-field appearance="outline"><mat-label>Tipo de cuidado</mat-label><mat-select formControlName="type">@for (type of eventTypes; track type.value) { <mat-option [value]="type.value">{{ type.label }}</mat-option> }</mat-select><mat-error>Escolha o tipo</mat-error></mat-form-field></div>
+              <div class="field-block"><div class="field-meta"><span>Identificação</span><span class="provenance p-{{ provenance('TITLE')?.toLowerCase() }}">{{ provenanceLabel('TITLE') }}</span></div><mat-form-field appearance="outline"><mat-label>Nome do cuidado</mat-label><input matInput formControlName="title" maxlength="120"><mat-error>Informe um nome para a agenda</mat-error></mat-form-field></div>
+            </div>
+            <div class="field-block"><div class="field-meta"><span>Como fazer</span><span class="provenance p-{{ provenance('INSTRUCTIONS')?.toLowerCase() }}">{{ provenanceLabel('INSTRUCTIONS') }}</span></div><mat-form-field appearance="outline"><mat-label>Orientações confirmadas (opcional)</mat-label><textarea matInput formControlName="instructions" rows="3" maxlength="2000"></textarea><mat-hint>Registre apenas instruções confirmadas por você ou por um profissional</mat-hint></mat-form-field></div>
+          </fieldset>
+
+          <fieldset class="review-section">
+            <legend><span>2</span><div><strong>Quando acontece</strong><small>Início, horário e repetição</small></div></legend>
+            <div class="two-col">
+              <div class="field-block"><div class="field-meta"><span>Primeiro dia</span><span class="provenance p-{{ provenance('START_AT')?.toLowerCase() }}">{{ provenanceLabel('START_AT') }}</span></div><mat-form-field appearance="outline"><mat-label>Data de início</mat-label><input matInput type="date" formControlName="dateStart"><mat-error>Informe a data</mat-error></mat-form-field></div>
+              <div class="field-block"><div class="field-meta"><span>Horário local</span><span class="provenance">Fuso da família</span></div><mat-form-field appearance="outline"><mat-label>Horário</mat-label><input matInput type="time" formControlName="timeStart"><mat-error>Informe o horário</mat-error></mat-form-field></div>
+            </div>
+            <div class="schedule-box">
+              <div class="field-meta"><span>Frequência</span><span class="provenance p-{{ provenance('SCHEDULE')?.toLowerCase() }}">{{ provenanceLabel('SCHEDULE') }}</span></div>
+              <mat-form-field appearance="outline"><mat-label>Como se repete</mat-label><mat-select formControlName="scheduleKind">@for (kind of scheduleKinds; track kind.value) { <mat-option [value]="kind.value">{{ kind.label }}</mat-option> }</mat-select></mat-form-field>
+              @if (review.controls.scheduleKind.value === 'CALENDAR_INTERVAL') { <div class="two-col"><mat-form-field appearance="outline"><mat-label>Repetir a cada</mat-label><input matInput type="number" formControlName="intervalCount"></mat-form-field><mat-form-field appearance="outline"><mat-label>Período</mat-label><mat-select formControlName="calendarUnit">@for (unit of calendarUnits; track unit.value) { <mat-option [value]="unit.value">{{ unit.label }}</mat-option> }</mat-select></mat-form-field></div> }
+              @if (review.controls.scheduleKind.value === 'FIXED_INTERVAL') { <mat-form-field appearance="outline"><mat-label>Intervalo em horas</mat-label><input matInput type="number" formControlName="fixedIntervalHours" min="1" step="0.5"><mat-hint>Use apenas quando a orientação exigir um intervalo exato</mat-hint></mat-form-field> }
+              @if (review.controls.scheduleKind.value === 'DAILY_TIMES') { <mat-form-field appearance="outline"><mat-label>Horários de cada dia</mat-label><input matInput formControlName="dailyTimes" placeholder="08:00, 20:00"><mat-hint>Separe horários únicos por vírgula</mat-hint></mat-form-field> }
+              @if (isRecurring) { <div class="two-col"><mat-form-field appearance="outline"><mat-label>Total de ocorrências</mat-label><input matInput type="number" formControlName="repetitions" min="1"><mat-hint>Preencha este campo ou uma data final</mat-hint></mat-form-field><mat-form-field appearance="outline"><mat-label>Repetir até</mat-label><input matInput type="date" formControlName="endDate"><mat-hint>Opcional quando houver total</mat-hint></mat-form-field></div> }
+            </div>
+          </fieldset>
+
+          <fieldset class="review-section">
+            <legend><span>3</span><div><strong>Quem acompanha</strong><small>Responsável e lembrete da família</small></div></legend>
+            <div class="two-col">
+              <div class="field-block"><div class="field-meta"><span>Responsável</span><span class="provenance p-{{ provenance('RESPONSIBLE')?.toLowerCase() }}">{{ provenanceLabel('RESPONSIBLE') }}</span></div><mat-form-field appearance="outline"><mat-label>Quem vai cuidar</mat-label><mat-select formControlName="responsibleTutorId">@for (member of members; track member.id) { @if (member.role !== 'VIEWER') { <mat-option [value]="member.tutorId">{{ member.firstName }} {{ member.lastName }}</mat-option> } }</mat-select><mat-error>Escolha o responsável</mat-error></mat-form-field></div>
+              <div class="field-block"><div class="field-meta"><span>Aviso</span><span class="provenance p-{{ provenance('REMINDER')?.toLowerCase() }}">{{ provenanceLabel('REMINDER') }}</span></div><mat-form-field appearance="outline"><mat-label>Quando lembrar</mat-label><mat-select formControlName="reminderMinutesBefore">@for (item of reminders; track item.value) { <mat-option [value]="item.value">{{ item.label }}</mat-option> }</mat-select></mat-form-field></div>
+            </div>
+          </fieldset>
+
+          <details class="advanced-options">
+            <summary><span><mat-icon>tune</mat-icon><span><strong>Opções adicionais</strong><small>Cuidado crítico e custo previsto</small></span></span><mat-icon class="chevron">expand_more</mat-icon></summary>
+            <div class="advanced-body">
+              <section class="optional-box"><mat-checkbox formControlName="critical"><strong>Cuidado crítico</strong><span>Avise um proprietário se não houver registro no prazo</span></mat-checkbox>@if (review.controls.critical.value) { <div class="two-col"><mat-form-field appearance="outline"><mat-label>Alertar após (minutos)</mat-label><input matInput type="number" formControlName="escalationDelayMinutes"></mat-form-field><mat-form-field appearance="outline"><mat-label>Proprietário avisado</mat-label><mat-select formControlName="escalationTutorId">@for (member of members; track member.id) { @if (member.role === 'OWNER') { <mat-option [value]="member.tutorId">{{ member.firstName }} {{ member.lastName }}</mat-option> } }</mat-select></mat-form-field></div> }</section>
+              <section class="optional-box"><div><strong>Custo previsto por execução</strong><p>Opcional. Ajuda a acompanhar os gastos da rotina.</p></div><div class="two-col"><mat-form-field appearance="outline"><mat-label>Valor</mat-label><input matInput type="number" formControlName="estimatedCostAmount" step="0.01"></mat-form-field><mat-form-field appearance="outline"><mat-label>Moeda</mat-label><mat-select formControlName="estimatedCostCurrency">@for (currency of currencies; track currency.code) { <mat-option [value]="currency.code">{{ currency.code }}</mat-option> }</mat-select></mat-form-field></div></section>
+            </div>
+          </details>
+
+          @if (reviewNotice) {
+            <div class="assistant-notice error review-notice" role="alert" aria-live="assertive"><mat-icon>{{ reviewNotice.icon }}</mat-icon><div><strong>{{ reviewNotice.title }}</strong><p>{{ reviewNotice.message }}</p></div></div>
+          }
+
+          <footer class="review-footer">
+            <div class="review-guidance"><mat-icon>{{ canConfirm ? 'verified' : 'info' }}</mat-icon><p>{{ reviewActionHint }}</p></div>
+            <div class="review-actions">
+              <button mat-button type="button" (click)="cancel()" [disabled]="isCancelling || isSaving || isConfirming">{{ isCancelling ? 'Cancelando' : 'Cancelar rascunho' }}</button>
+              <button mat-stroked-button type="submit" [disabled]="isSaving || isCancelling || isConfirming">@if (isSaving) { <mat-spinner diameter="18"></mat-spinner> }{{ isSaving ? 'Salvando revisão' : 'Salvar revisão' }}</button>
+              <button mat-flat-button type="button" (click)="confirm()" [disabled]="!canConfirm || isConfirming || isCancelling">@if (isConfirming) { <mat-spinner diameter="18"></mat-spinner> }{{ isConfirming ? 'Criando plano' : 'Confirmar e criar plano' }}</button>
+            </div>
+          </footer>
+        </form>
+      </section>
+    }
+  }
+</section>

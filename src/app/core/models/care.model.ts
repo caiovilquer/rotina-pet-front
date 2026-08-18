@@ -1,6 +1,18 @@
-import { EventType, RecurrenceFrequency } from './event.model';
+import { EventType } from './event.model';
 
 export type CareOccurrenceStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
+export type ScheduleKind = 'ONE_TIME' | 'CALENDAR_INTERVAL' | 'FIXED_INTERVAL' | 'DAILY_TIMES';
+export type CalendarIntervalUnit = 'DAY' | 'WEEK' | 'MONTH' | 'YEAR';
+
+export interface CareScheduleRule {
+  kind: ScheduleKind;
+  calendarUnit?: CalendarIntervalUnit | null;
+  intervalCount?: number | null;
+  fixedIntervalMinutes?: number | null;
+  dailyTimes: string[];
+  repetitions?: number | null;
+  endAt?: string | null;
+}
 
 export interface CarePlan {
   id: string;
@@ -11,12 +23,8 @@ export interface CarePlan {
   title: string;
   instructions?: string;
   startAt: string;
-  recurrence?: {
-    frequency: RecurrenceFrequency;
-    intervalCount: number;
-    repetitions?: number | null;
-    finalDate?: string | null;
-  };
+  startAtLocal: string;
+  scheduleRule: CareScheduleRule;
   reminderMinutesBefore: number;
   critical: boolean;
   escalationDelayMinutes?: number;
@@ -33,10 +41,8 @@ export interface CarePlanRequest {
   title: string;
   instructions: string | null;
   startAt: string;
-  frequency: RecurrenceFrequency | null;
-  intervalCount: number;
-  repetitions: number | null;
-  finalDate: string | null;
+  zoneId: string;
+  scheduleRule: CareScheduleRule;
   reminderMinutesBefore: number;
   responsibleTutorId: number | null;
   critical: boolean;
@@ -56,6 +62,7 @@ export interface CareOccurrence {
   title: string;
   instructions?: string;
   dueAt: string;
+  dueAtLocal: string;
   status: CareOccurrenceStatus;
   completedAt?: string;
   completedByTutorId?: number;

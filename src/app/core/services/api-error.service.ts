@@ -12,6 +12,16 @@ export class ApiErrorService {
     if (!(error instanceof HttpErrorResponse)) return fallback;
     if (error.status === 0) return 'Sem conexão com o servidor. Verifique sua internet e tente novamente.';
 
+    const publicCode = typeof error.error?.error === 'string' ? error.error.error : null;
+    switch (publicCode) {
+      case 'AI_PROVIDER_UNAVAILABLE':
+        return 'O assistente está indisponível agora. Tente novamente mais tarde ou continue pelo formulário manual.';
+      case 'AI_RATE_LIMITED':
+        return 'Você atingiu o limite do assistente nesta hora. Aguarde antes de tentar novamente.';
+      case 'AI_OUTPUT_INVALID':
+        return 'A resposta não pôde ser validada com segurança. Tente reformular ou use o formulário manual.';
+    }
+
     const details = error.error?.details as ApiValidationError[] | undefined;
     const validation = details?.find(detail => detail.message);
     if (validation) return validation.field

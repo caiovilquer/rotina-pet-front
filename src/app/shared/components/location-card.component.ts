@@ -436,19 +436,19 @@ import { LocationService } from '../../core/services/location.service';
       color: var(--q-text-2);
       padding: 0.75rem;
       background: var(--q-surface-2);
+      border: 1px solid var(--q-border);
       border-radius: var(--q-radius-sm);
-      border-left: 4px solid var(--q-border-2);
     }
 
     .today-hours.open {
       background: var(--q-success-bg);
-      border-left-color: var(--q-success);
+      border-color: color-mix(in srgb, var(--q-success) 28%, var(--q-border));
       color: var(--q-success);
     }
 
     .today-hours.closed {
       background: var(--q-error-bg);
-      border-left-color: var(--q-error);
+      border-color: color-mix(in srgb, var(--q-error) 28%, var(--q-border));
       color: var(--q-error);
     }
 

@@ -10,8 +10,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSelectModule } from '@angular/material/select';
-import { CarePlanRequest } from '../../core/models/care.model';
-import { EventType, RecurrenceFrequency } from '../../core/models/event.model';
+import { CalendarIntervalUnit, CarePlanRequest, ScheduleKind } from '../../core/models/care.model';
+import { EventType } from '../../core/models/event.model';
 import { PetSummary } from '../../core/models/pet.model';
 import { ApiErrorService } from '../../core/services/api-error.service';
 import { CareService } from '../../core/services/care.service';
@@ -22,6 +22,7 @@ import { ToastService } from '../../core/services/toast.service';
 import { HouseholdService } from '../../core/services/household.service';
 import { DEFAULT_HOUSEHOLD_TIMEZONE, HouseholdMember } from '../../core/models/household.model';
 import { CURRENCY_OPTIONS, currencySymbol, isListedCurrency, normalizeCurrency } from '../../core/models/currency.model';
+import { buildScheduleRule, parseDailyTimes } from '../../shared/components/care-plan-fields';
 
 export interface CarePlanFormData { planId?: string; petId?: number }
 
@@ -44,9 +45,15 @@ export class EventFormComponent implements OnInit {
   members: HouseholdMember[] = [];
   householdTimezone = DEFAULT_HOUSEHOLD_TIMEZONE;
 
-  readonly frequencies: Array<{ value: RecurrenceFrequency; label: string }> = [
-    { value: 'DAILY', label: 'Dia(s)' }, { value: 'WEEKLY', label: 'Semana(s)' },
-    { value: 'MONTHLY', label: 'Mês(es)' }, { value: 'YEARLY', label: 'Ano(s)' }
+  readonly scheduleKinds: Array<{ value: ScheduleKind; label: string }> = [
+    { value: 'ONE_TIME', label: 'Uma vez' },
+    { value: 'CALENDAR_INTERVAL', label: 'Intervalo de calendário' },
+    { value: 'FIXED_INTERVAL', label: 'A cada tantas horas' },
+    { value: 'DAILY_TIMES', label: 'Horários todos os dias' }
+  ];
+  readonly calendarUnits: Array<{ value: CalendarIntervalUnit; label: string }> = [
+    { value: 'DAY', label: 'dia(s)' }, { value: 'WEEK', label: 'semana(s)' },
+    { value: 'MONTH', label: 'mês(es)' }, { value: 'YEAR', label: 'ano(s)' }
   ];
   readonly reminders = [
     { value: 0, label: 'No horário' }, { value: 15, label: '15 minutos antes' },
@@ -69,10 +76,13 @@ export class EventFormComponent implements OnInit {
     instructions: this.fb.control('', Validators.maxLength(2000)),
     dateStart: this.fb.control<Date | null>(null, Validators.required),
     timeStart: this.fb.control('', Validators.required),
-    frequency: this.fb.control<RecurrenceFrequency | null>(null),
+    scheduleKind: this.fb.nonNullable.control<ScheduleKind>('ONE_TIME'),
+    calendarUnit: this.fb.nonNullable.control<CalendarIntervalUnit>('DAY'),
     intervalCount: this.fb.control(1, [Validators.required, Validators.min(1), Validators.max(365)]),
-    repetitions: this.fb.control<number | null>(null, [Validators.min(1), Validators.max(10000)]),
-    finalDate: this.fb.control<Date | null>(null),
+    fixedIntervalHours: this.fb.control(12, [Validators.required, Validators.min(1), Validators.max(8760)]),
+    dailyTimes: this.fb.nonNullable.control('08:00, 20:00'),
+    repetitions: this.fb.control<number | null>(null, [Validators.min(1)]),
+    endDate: this.fb.control<Date | null>(null),
     reminderMinutesBefore: this.fb.control(30, [Validators.required, Validators.min(0), Validators.max(10080)]),
     responsibleTutorId: this.fb.control<number | null>(null, Validators.required),
     critical: this.fb.nonNullable.control(false),
@@ -80,7 +90,7 @@ export class EventFormComponent implements OnInit {
     escalationTutorId: this.fb.control<number | null>(null),
     estimatedCostAmount: this.fb.control<number | null>(null, [Validators.min(0.01), Validators.max(9999999999.99)]),
     estimatedCostCurrency: this.fb.nonNullable.control('BRL')
-  }, { validators: [this.finalDateValidator, this.startDateValidator, this.escalationValidator] });
+  }, { validators: [this.endDateValidator, this.startDateValidator, this.scheduleValidator, this.escalationValidator] });
 
   constructor(
     private readonly care: CareService,
@@ -112,11 +122,12 @@ export class EventFormComponent implements OnInit {
   selectType(type: EventType): void { this.eventForm.patchValue({ type }); }
   get costCurrencySymbol(): string { return currencySymbol(this.eventForm.controls.estimatedCostCurrency.value); }
   get hasUnlistedCurrency(): boolean { return !isListedCurrency(this.eventForm.controls.estimatedCostCurrency.value); }
-  get frequencyUnit(): string {
-    return this.frequencies.find(item => item.value === this.eventForm.controls.frequency.value)?.label || '';
+  get calendarUnitLabel(): string {
+    return this.calendarUnits.find(item => item.value === this.eventForm.controls.calendarUnit.value)?.label || '';
   }
+  get isRecurring(): boolean { return this.eventForm.controls.scheduleKind.value !== 'ONE_TIME'; }
   clearRecurrence(): void {
-    this.eventForm.patchValue({ frequency: null, intervalCount: 1, repetitions: null, finalDate: null });
+    this.eventForm.patchValue({ scheduleKind: 'ONE_TIME', repetitions: null, endDate: null });
   }
 
   onSubmit(): void {
@@ -127,20 +138,23 @@ export class EventFormComponent implements OnInit {
       return;
     }
     const value = this.eventForm.getRawValue();
-    const starts = this.dateTime.combineDateAndTime(value.dateStart!, value.timeStart!);
-    const finalDate = value.finalDate
-      ? this.dateTime.combineDateAndTime(value.finalDate, value.timeStart!)
+    const dailyTimes = parseDailyTimes(value.dailyTimes);
+    const firstTime = value.scheduleKind === 'DAILY_TIMES' ? dailyTimes[0] : value.timeStart!;
+    const starts = this.dateTime.combineDateAndTime(value.dateStart!, firstTime);
+    const endTime = value.scheduleKind === 'DAILY_TIMES' ? dailyTimes.at(-1)! : value.timeStart!;
+    const endAt = value.endDate
+      ? this.dateTime.combineDateAndTime(value.endDate, endTime)
       : null;
     const request: CarePlanRequest = {
       petId: value.petId!, type: value.type!, title: value.title!.trim(),
       instructions: value.instructions?.trim() || null,
-      startAt: this.dateTime.formatCareDateTimeForAPI(starts, this.householdTimezone),
-      frequency: value.frequency || null,
-      intervalCount: value.frequency ? Number(value.intervalCount) : 1,
-      repetitions: value.frequency && value.repetitions ? Number(value.repetitions) : null,
-      finalDate: value.frequency && finalDate
-        ? this.dateTime.formatCareDateTimeForAPI(finalDate, this.householdTimezone)
-        : null,
+      startAt: this.dateTime.formatDateTimeForAPIWithoutTimezone(starts),
+      zoneId: this.householdTimezone,
+      scheduleRule: buildScheduleRule(
+        value.scheduleKind, value.calendarUnit, Number(value.intervalCount), Number(value.fixedIntervalHours), value.dailyTimes,
+        value.repetitions ? Number(value.repetitions) : null,
+        endAt ? this.dateTime.formatDateTimeForAPIWithoutTimezone(endAt) : null
+      ),
       reminderMinutesBefore: Number(value.reminderMinutesBefore),
       responsibleTutorId: value.responsibleTutorId,
       critical: value.critical,
@@ -181,14 +195,17 @@ export class EventFormComponent implements OnInit {
     this.care.getPlan(this.data!.planId!).subscribe({
       next: plan => {
         this.householdTimezone = plan.timezone || this.householdTimezone;
-        const start = this.dateTime.parseAPIDate(plan.startAt, this.householdTimezone);
+        const start = this.dateTime.parseAPIDate(plan.startAtLocal);
         this.eventForm.patchValue({
           petId: plan.petId, type: plan.type, title: plan.title, instructions: plan.instructions || '',
-          dateStart: start, timeStart: this.dateTime.extractTime(plan.startAt),
-          frequency: plan.recurrence?.frequency || null,
-          intervalCount: plan.recurrence?.intervalCount || 1,
-          repetitions: plan.recurrence?.repetitions || null,
-          finalDate: plan.recurrence?.finalDate ? this.dateTime.parseAPIDate(plan.recurrence.finalDate, this.householdTimezone) : null,
+          dateStart: start, timeStart: this.dateTime.extractTime(plan.startAtLocal),
+          scheduleKind: plan.scheduleRule.kind,
+          calendarUnit: plan.scheduleRule.calendarUnit || 'DAY',
+          intervalCount: plan.scheduleRule.intervalCount || 1,
+          fixedIntervalHours: (plan.scheduleRule.fixedIntervalMinutes || 720) / 60,
+          dailyTimes: plan.scheduleRule.dailyTimes.join(', '),
+          repetitions: plan.scheduleRule.repetitions || null,
+          endDate: plan.scheduleRule.endAt ? this.dateTime.parseAPIDate(plan.scheduleRule.endAt, this.householdTimezone) : null,
           reminderMinutesBefore: plan.reminderMinutesBefore,
           responsibleTutorId: plan.responsibleTutorId,
           critical: plan.critical,
@@ -207,10 +224,29 @@ export class EventFormComponent implements OnInit {
     });
   }
 
-  private finalDateValidator(control: AbstractControl): ValidationErrors | null {
+  private endDateValidator(control: AbstractControl): ValidationErrors | null {
     const start = control.get('dateStart')?.value as Date | null;
-    const end = control.get('finalDate')?.value as Date | null;
+    const end = control.get('endDate')?.value as Date | null;
     return start && end && end.getTime() < start.getTime() ? { finalDateBeforeStart: true } : null;
+  }
+
+  private scheduleValidator(control: AbstractControl): ValidationErrors | null {
+    const kind = control.get('scheduleKind')?.value as ScheduleKind;
+    if (kind === 'CALENDAR_INTERVAL') {
+      const interval = Number(control.get('intervalCount')?.value);
+      return !control.get('calendarUnit')?.value || interval < 1 || interval > 365 ? { scheduleInvalid: true } : null;
+    }
+    if (kind === 'FIXED_INTERVAL') {
+      const hours = Number(control.get('fixedIntervalHours')?.value);
+      return hours < 1 || hours > 8760 ? { scheduleInvalid: true } : null;
+    }
+    if (kind === 'DAILY_TIMES') {
+      const raw = String(control.get('dailyTimes')?.value || '');
+      const parsed = parseDailyTimes(raw);
+      const tokens = raw.split(',').map(item => item.trim()).filter(Boolean);
+      return !parsed.length || parsed.length !== tokens.length ? { scheduleInvalid: true } : null;
+    }
+    return null;
   }
 
   private startDateValidator(control: AbstractControl): ValidationErrors | null {

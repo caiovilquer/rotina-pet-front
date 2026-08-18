@@ -60,6 +60,10 @@
 .attachment-open span { display: grid; min-width: 0; }
 .attachment-open strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .73rem; }
 .attachment-open small { color: var(--q-text-3); font-size: .66rem; }
+.attachment-open .knowledge-status { margin-top: 2px; color: var(--q-text-3); font-size: .64rem; font-style: normal; white-space: normal; }
+.attachment-open .status-ready { color: var(--q-success); }
+.attachment-open .status-failed { color: var(--q-error); }
+.attachment-open .status-pending, .attachment-open .status-indexing { color: var(--q-info); }
 .attachment-list .mat-mdc-icon-button { width: 34px; height: 34px; padding: 5px; color: var(--q-text-3); }
 .attachment-list .mat-icon { font-size: 17px; }
 .load-more { display: flex; margin: 8px auto 0; }

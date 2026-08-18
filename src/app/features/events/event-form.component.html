@@ -82,35 +82,69 @@
 
       <section class="repeat-section">
         <div class="section-title"><div><strong>Repetição</strong><span>As próximas execuções são criadas automaticamente.</span></div>
-          @if (eventForm.controls.frequency.value) { <button mat-button type="button" (click)="clearRecurrence()">Não repetir</button> }
+          @if (isRecurring) { <button mat-button type="button" (click)="clearRecurrence()">Não repetir</button> }
         </div>
-        <div class="form-row repeat-row">
-          <mat-form-field appearance="outline">
-            <mat-label>Frequência</mat-label>
-            <mat-select formControlName="frequency">
-              <mat-option [value]="null">Não repetir</mat-option>
-              @for (frequency of frequencies; track frequency.value) { <mat-option [value]="frequency.value">{{ frequency.label }}</mat-option> }
-            </mat-select>
-          </mat-form-field>
-          @if (eventForm.controls.frequency.value) {
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Como deve repetir?</mat-label>
+          <mat-select formControlName="scheduleKind">
+            @for (kind of scheduleKinds; track kind.value) {
+              <mat-option [value]="kind.value">{{ kind.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        @if (eventForm.controls.scheduleKind.value === 'CALENDAR_INTERVAL') {
+          <div class="form-row repeat-row">
             <mat-form-field appearance="outline">
               <mat-label>A cada</mat-label>
               <input matInput type="number" formControlName="intervalCount" min="1" max="365">
-              <span matTextSuffix>&nbsp;{{ frequencyUnit }}</span>
               <mat-error>Use um intervalo entre 1 e 365</mat-error>
             </mat-form-field>
-          }
-        </div>
-        @if (eventForm.controls.frequency.value) {
+            <mat-form-field appearance="outline">
+              <mat-label>Unidade</mat-label>
+              <mat-select formControlName="calendarUnit">
+                @for (unit of calendarUnits; track unit.value) {
+                  <mat-option [value]="unit.value">{{ unit.label }}</mat-option>
+                }
+              </mat-select>
+              <mat-hint>A cada {{ eventForm.controls.intervalCount.value || 1 }} {{ calendarUnitLabel }}</mat-hint>
+            </mat-form-field>
+          </div>
+        }
+
+        @if (eventForm.controls.scheduleKind.value === 'FIXED_INTERVAL') {
+          <div class="form-row repeat-row">
+            <mat-form-field appearance="outline">
+              <mat-label>A cada quantas horas?</mat-label>
+              <input matInput type="number" formControlName="fixedIntervalHours" min="1" max="8760" step="0.5">
+              <span matTextSuffix>&nbsp;hora(s)</span>
+              <mat-hint>Mede horas transcorridas, inclusive em mudança de fuso</mat-hint>
+            </mat-form-field>
+          </div>
+        }
+
+        @if (eventForm.controls.scheduleKind.value === 'DAILY_TIMES') {
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Horários diários</mat-label>
+            <input matInput formControlName="dailyTimes" placeholder="08:00, 20:00">
+            <mat-hint>Separe horários únicos por vírgula. Ex.: 08:00, 14:00, 20:00</mat-hint>
+          </mat-form-field>
+        }
+
+        @if (eventForm.hasError('scheduleInvalid')) {
+          <span class="field-error block" role="alert">Revise a regra e os horários de repetição</span>
+        }
+
+        @if (isRecurring) {
           <div class="form-row">
             <mat-form-field appearance="outline">
               <mat-label>Total de ocorrências (opcional)</mat-label>
-              <input matInput type="number" formControlName="repetitions" min="1" max="10000">
+              <input matInput type="number" formControlName="repetitions" min="1">
               <mat-hint>Inclui a primeira</mat-hint>
             </mat-form-field>
             <mat-form-field appearance="outline">
               <mat-label>Ou repetir até (opcional)</mat-label>
-              <input matInput [matDatepicker]="endPicker" formControlName="finalDate">
+              <input matInput [matDatepicker]="endPicker" formControlName="endDate">
               <mat-datepicker-toggle matIconSuffix [for]="endPicker"></mat-datepicker-toggle>
               <mat-datepicker #endPicker></mat-datepicker>
               <mat-error>A data final deve vir depois da primeira</mat-error>

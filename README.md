@@ -37,6 +37,8 @@
 
 ## ⚡ Quick Start
 
+Requer Node.js 22.12+ (a versão usada no CI está registrada em `.nvmrc`) e npm 9+.
+
 ### 1. Clone o repositório
 ```bash
 git clone https://github.com/caiovilquer/pet-care-front.git
@@ -45,7 +47,7 @@ cd pet-care-scheduler-front
 
 ### 2. Instale as dependências
 ```bash
-npm install
+npm ci
 ```
 
 ### 3. Configure as variáveis de ambiente
@@ -161,8 +163,8 @@ Os arquivos gerados estarão em `dist/pet-care-scheduler-front/browser/`
 # Testes unitários
 npm test
 
-# Testes com coverage
-npm run test:coverage
+# Execução não interativa, igual ao CI
+npm test -- --watch=false --browsers=ChromeHeadless
 ```
 
 ## 📦 Dependências Principais

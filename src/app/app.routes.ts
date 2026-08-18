@@ -61,6 +61,14 @@ export const routes: Routes = [
         loadComponent: () => import('./features/events/events.component').then(m => m.EventsComponent)
       },
       {
+        path: 'assistant/drafts/:draftId',
+        loadComponent: () => import('./features/assistant/assistant-page.component').then(m => m.AssistantPageComponent)
+      },
+      {
+        path: 'assistant',
+        loadComponent: () => import('./features/assistant/assistant-page.component').then(m => m.AssistantPageComponent)
+      },
+      {
         path: 'petshops',
         loadComponent: () => import('./features/locations/petshops.component').then(m => m.PetshopsComponent)
       },
@@ -71,6 +79,10 @@ export const routes: Routes = [
       {
         path: 'profile',
         loadComponent: () => import('./features/profile/profile.component').then(m => m.ProfileComponent)
+      },
+      {
+        path: 'integrations/whatsapp',
+        loadComponent: () => import('./features/integrations/whatsapp-integration.component').then(m => m.WhatsAppIntegrationComponent)
       },
       {
         path: 'care-center',

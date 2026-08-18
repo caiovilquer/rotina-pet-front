@@ -1,0 +1,76 @@
+<main class="integration-page" aria-labelledby="whatsapp-title">
+  <header class="integration-hero">
+    <div class="hero-icon" aria-hidden="true"><mat-icon>chat</mat-icon></div>
+    <div>
+      <p class="q-overline">Integrações</p>
+      <h1 id="whatsapp-title">Rotina pelo WhatsApp</h1>
+      <p>Descreva um cuidado em texto, revise o rascunho e confirme antes de criar o plano.</p>
+    </div>
+  </header>
+
+  @if (loading) {
+    <section class="state-card loading" role="status"><mat-spinner diameter="28"></mat-spinner><span>Verificando conexão…</span></section>
+  } @else if (!canManage) {
+    <section class="state-card notice" role="status">
+      <mat-icon>lock</mat-icon>
+      <div><h2>Disponível para proprietários</h2><p>Somente quem administra esta família pode conectar um número e criar planos.</p></div>
+    </section>
+  } @else if (isUnavailable) {
+    <section class="state-card notice" role="status">
+      <mat-icon>construction</mat-icon>
+      <div><h2>Integração ainda indisponível</h2><p>A configuração do número oficial ainda não foi ativada neste ambiente.</p></div>
+    </section>
+  } @else {
+    <section class="connection-card" [class.connected]="isConnected" [attr.aria-live]="isConnecting ? 'polite' : null">
+      <div class="status-row">
+        <span class="status-dot" aria-hidden="true"></span>
+        <div>
+          <p class="q-overline">{{ isConnected ? 'Conectado' : isConnecting ? 'Aguardando confirmação' : 'Desconectado' }}</p>
+          <h2>{{ currentHousehold?.name }}</h2>
+        </div>
+      </div>
+
+      @if (isConnected) {
+        <div class="connected-details">
+          <mat-icon>verified_user</mat-icon>
+          <div><strong>{{ connection?.maskedNumber }}</strong><span>Vínculo protegido e ativo para esta conta.</span></div>
+        </div>
+        <div class="safety-note"><mat-icon>fact_check</mat-icon><p>Mensagens geram apenas rascunhos. Um plano só é criado quando você toca em <strong>Confirmar</strong>.</p></div>
+        <div class="actions">
+          <button mat-stroked-button type="button" (click)="load()" [disabled]="saving"><mat-icon>refresh</mat-icon>Atualizar</button>
+          <button mat-button class="danger" type="button" (click)="revoke()" [disabled]="saving"><mat-icon>link_off</mat-icon>Desconectar</button>
+        </div>
+      } @else if (linkToken) {
+        <div class="link-steps">
+          <div class="step"><span>1</span><p>Abra o WhatsApp pelo botão abaixo.</p></div>
+          <div class="step"><span>2</span><p>Envie a mensagem já preenchida sem alterar o código.</p></div>
+          <div class="step"><span>3</span><p>Volte para cá; a tela atualizará quando o vínculo for confirmado.</p></div>
+        </div>
+        <div class="token-box">
+          <span>Mensagem de vínculo</span>
+          <code>VINCULAR {{ linkToken.code }}</code>
+          <small>Válida até {{ linkToken.expiresAt | date:'HH:mm' }}. Uso único.</small>
+        </div>
+        <div class="actions">
+          <button mat-flat-button type="button" (click)="openWhatsApp()"><mat-icon>open_in_new</mat-icon>Abrir WhatsApp</button>
+          <button mat-stroked-button type="button" (click)="copyCode()"><mat-icon>content_copy</mat-icon>Copiar código</button>
+        </div>
+      } @else {
+        <div class="empty-connection">
+          <mat-icon>add_link</mat-icon>
+          <div><h3>Conecte em menos de um minuto</h3><p>Geraremos um código temporário, vinculado somente à família <strong>{{ currentHousehold?.name }}</strong>.</p></div>
+        </div>
+        <div class="actions"><button mat-flat-button type="button" (click)="connect()" [disabled]="saving">@if (saving) { <mat-spinner diameter="18"></mat-spinner> }Conectar WhatsApp</button></div>
+      }
+    </section>
+
+    <section class="how-it-works" aria-labelledby="how-title">
+      <h2 id="how-title">Como funciona</h2>
+      <div class="feature-grid">
+        <article><mat-icon>edit_note</mat-icon><h3>Você descreve</h3><p>Envie pet, cuidado, dia, horário e repetição em uma mensagem.</p></article>
+        <article><mat-icon>rule</mat-icon><h3>Você revisa</h3><p>O assistente devolve um rascunho e aponta o que estiver faltando.</p></article>
+        <article><mat-icon>check_circle</mat-icon><h3>Você confirma</h3><p>Botões repetidos ou webhooks duplicados não criam planos em dobro.</p></article>
+      </div>
+    </section>
+  }
+</main>

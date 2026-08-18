@@ -14,6 +14,7 @@
         </div>
       </div>
       <div class="hero-actions">
+        <button mat-stroked-button (click)="askAboutPet()"><mat-icon>search</mat-icon>Perguntar sobre {{ pet.name }}</button>
         <button mat-stroked-button (click)="viewReport()"><mat-icon>assignment</mat-icon>Resumo</button>
         @if (canManagePet) { <button mat-stroked-button (click)="editPet()"><mat-icon>edit</mat-icon>Editar perfil</button> }
         @if (canRecordHealth) { <button mat-flat-button (click)="openRecord()"><mat-icon>add</mat-icon>Novo registro</button> }
@@ -71,7 +72,8 @@
                   @if (record.attachments.length) {
                     <ul class="attachment-list" aria-label="Anexos privados">
                       @for (attachment of record.attachments; track attachment.id) {
-                        <li><button type="button" class="attachment-open" (click)="downloadAttachment(attachment)" [matTooltip]="'Abrir ' + attachment.filename"><mat-icon>{{ attachment.contentType === 'application/pdf' ? 'picture_as_pdf' : 'image' }}</mat-icon><span><strong>{{ attachment.filename }}</strong><small>{{ formatBytes(attachment.sizeBytes) }} · privado</small></span></button>
+                        <li><button type="button" class="attachment-open" (click)="downloadAttachment(attachment)" [matTooltip]="'Abrir ' + attachment.filename"><mat-icon>{{ attachment.contentType === 'application/pdf' ? 'picture_as_pdf' : 'image' }}</mat-icon><span><strong>{{ attachment.filename }}</strong><small>{{ formatBytes(attachment.sizeBytes) }} · privado</small>@if (attachment.contentType === 'application/pdf') { <em class="knowledge-status status-{{ (knowledgeStatus(attachment.mediaAssetId) || 'NONE').toLowerCase() }}">{{ knowledgeStatusLabel(attachment.mediaAssetId) }}</em> }</span></button>
+                          @if (knowledgeStatus(attachment.mediaAssetId) === 'FAILED' && canRecordHealth) { <button mat-icon-button (click)="retryKnowledge(attachment.mediaAssetId)" [attr.aria-label]="'Tentar preparar ' + attachment.filename + ' novamente'" matTooltip="Tentar preparar novamente"><mat-icon>refresh</mat-icon></button> }
                           <button mat-icon-button (click)="confirmDeleteAttachment(record, attachment)" [attr.aria-label]="'Remover ' + attachment.filename"><mat-icon>close</mat-icon></button></li>
                       }
                     </ul>

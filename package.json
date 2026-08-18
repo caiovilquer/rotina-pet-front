@@ -22,12 +22,13 @@
     "google-maps"
   ],
   "engines": {
-    "node": ">=18.0.0",
+    "node": ">=22.12.0",
     "npm": ">=9.0.0"
   },
   "scripts": {
     "ng": "ng",
     "start": "npm run set-env && ng serve",
+    "dev": "npm start",
     "start:dev": "npm run set-env && ng serve",
     "start:https": "npm run set-env && ng serve --proxy-config proxy.conf.https.json",
     "start:no-proxy": "npm run set-env && ng serve --proxy-config false",

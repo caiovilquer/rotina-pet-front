@@ -48,7 +48,8 @@ import { FooterComponent } from './ui/footer.component';
           <a routerLink="/today" routerLinkActive="on"><mat-icon>wb_sunny</mat-icon>Hoje</a>
           <a routerLink="/pets" routerLinkActive="on"><mat-icon>pets</mat-icon>Pets</a>
           <a routerLink="/events" routerLinkActive="on"><mat-icon>calendar_month</mat-icon>Agenda</a>
-          <button mat-button [matMenuTriggerFor]="exploreMenu" [class.on]="isMoreActive">
+          <a routerLink="/assistant" routerLinkActive="on"><mat-icon>auto_awesome</mat-icon>Assistente</a>
+          <button mat-button [matMenuTriggerFor]="exploreMenuDesktop" [class.on]="isMoreActive">
             <span>Mais</span><mat-icon>expand_more</mat-icon>
           </button>
         </nav>
@@ -57,9 +58,15 @@ import { FooterComponent } from './ui/footer.component';
 
         <div class="header-actions">
           @if (canAddContent) {
-            <button mat-flat-button class="primary-action" (click)="startPrimaryAction()">
-              <mat-icon>add</mat-icon><span>{{ hasPets ? 'Planejar cuidado' : 'Cadastrar pet' }}</span>
-            </button>
+            @if (hasPets) {
+              <button mat-flat-button class="primary-action" [matMenuTriggerFor]="createMenu" aria-label="Planejar cuidado">
+                <mat-icon>add</mat-icon><span class="action-label">Planejar cuidado</span>
+              </button>
+            } @else {
+              <button mat-flat-button class="primary-action" (click)="startPrimaryAction()" aria-label="Cadastrar pet">
+                <mat-icon>add</mat-icon><span class="action-label">Cadastrar pet</span>
+              </button>
+            }
           }
           @if (currentHousehold) {
             <button mat-icon-button [matMenuTriggerFor]="householdMenu" class="household-switch"
@@ -72,7 +79,7 @@ import { FooterComponent } from './ui/footer.component';
                   [attr.aria-label]="'Notificações: ' + upcomingEventsCount + ' cuidados próximos'">
             <mat-icon>notifications_none</mat-icon>
             @if (upcomingEventsCount > 0) {
-              <span class="badge">{{ upcomingEventsCount > 9 ? '9+' : upcomingEventsCount }}</span>
+              <span class="badge" aria-hidden="true">{{ upcomingEventsCount > 9 ? '9+' : upcomingEventsCount }}</span>
             }
           </button>
           <button mat-icon-button [matMenuTriggerFor]="userMenu" class="avatar-btn" aria-label="Abrir menu da conta">
@@ -94,22 +101,42 @@ import { FooterComponent } from './ui/footer.component';
         <a routerLink="/today" routerLinkActive="on"><mat-icon>wb_sunny</mat-icon><span>Hoje</span></a>
         <a routerLink="/pets" routerLinkActive="on"><mat-icon>pets</mat-icon><span>Pets</span></a>
         @if (canAddContent) {
-          <button type="button" class="bottom-create" (click)="startPrimaryAction()" [attr.aria-label]="hasPets ? 'Planejar cuidado' : 'Cadastrar pet'">
-            <mat-icon>add</mat-icon><span>Adicionar</span>
-          </button>
+          @if (hasPets) {
+            <button type="button" class="bottom-create" [matMenuTriggerFor]="createMenu" aria-label="Adicionar cuidado">
+              <mat-icon>add</mat-icon><span>Adicionar</span>
+            </button>
+          } @else {
+            <button type="button" class="bottom-create" (click)="startPrimaryAction()" aria-label="Cadastrar pet">
+              <mat-icon>add</mat-icon><span>Adicionar</span>
+            </button>
+          }
         }
         <a routerLink="/events" routerLinkActive="on"><mat-icon>calendar_month</mat-icon><span>Agenda</span></a>
-        <button type="button" [matMenuTriggerFor]="exploreMenu" [class.on]="isMoreActive" aria-label="Abrir mais opções">
+        <button type="button" [matMenuTriggerFor]="exploreMenuMobile" [class.on]="isMobileMoreActive" aria-label="Abrir mais opções">
           <mat-icon>more_horiz</mat-icon><span>Mais</span>
         </button>
       </nav>
     </div>
 
-    <mat-menu #exploreMenu="matMenu" xPosition="before">
+    <mat-menu #exploreMenuDesktop="matMenu" xPosition="before">
       <div class="menu-section-title" (click)="$event.stopPropagation()">Outros espaços</div>
       <button mat-menu-item routerLink="/care-center"><mat-icon>assignment</mat-icon><span>Saúde e finanças</span></button>
       <button mat-menu-item routerLink="/family"><mat-icon>group</mat-icon><span>Quem cuida</span></button>
       <button mat-menu-item routerLink="/petshops"><mat-icon>near_me</mat-icon><span>Por perto</span></button>
+    </mat-menu>
+
+    <mat-menu #exploreMenuMobile="matMenu" xPosition="before">
+      <div class="menu-section-title" (click)="$event.stopPropagation()">Outros espaços</div>
+      <button mat-menu-item routerLink="/assistant"><mat-icon>auto_awesome</mat-icon><span>Assistente</span></button>
+      <button mat-menu-item routerLink="/care-center"><mat-icon>assignment</mat-icon><span>Saúde e finanças</span></button>
+      <button mat-menu-item routerLink="/family"><mat-icon>group</mat-icon><span>Quem cuida</span></button>
+      <button mat-menu-item routerLink="/petshops"><mat-icon>near_me</mat-icon><span>Por perto</span></button>
+    </mat-menu>
+
+    <mat-menu #createMenu="matMenu" xPosition="before">
+      <div class="menu-section-title" (click)="$event.stopPropagation()">Adicionar cuidado</div>
+      <button mat-menu-item (click)="openAssistant()"><mat-icon>auto_awesome</mat-icon><span>Descrever com o assistente</span></button>
+      <button mat-menu-item (click)="openPlan()"><mat-icon>edit_note</mat-icon><span>Preencher manualmente</span></button>
     </mat-menu>
 
     <mat-menu #householdMenu="matMenu" xPosition="before">
@@ -134,6 +161,7 @@ import { FooterComponent } from './ui/footer.component';
         <mat-divider></mat-divider>
       }
       <button mat-menu-item routerLink="/profile"><mat-icon>person_outline</mat-icon><span>Meu perfil</span></button>
+      <button mat-menu-item routerLink="/integrations/whatsapp"><mat-icon>chat</mat-icon><span>WhatsApp</span></button>
       <button mat-menu-item (click)="toggleTheme()"><mat-icon>{{ isDark ? 'light_mode' : 'dark_mode' }}</mat-icon><span>{{ isDark ? 'Usar tema claro' : 'Usar tema escuro' }}</span></button>
       <mat-divider></mat-divider>
       <button mat-menu-item (click)="logout()"><mat-icon>logout</mat-icon><span>Sair</span></button>
@@ -182,15 +210,24 @@ import { FooterComponent } from './ui/footer.component';
 
     .header-actions { display: flex; align-items: center; gap: 3px; }
     .header-actions .mat-mdc-icon-button { color: var(--q-text-2); }
-    .primary-action { margin-right: var(--q-space-2); white-space: nowrap; }
+    .primary-action { margin-right: var(--q-space-2); min-width: 0; white-space: nowrap; }
     .household-switch { margin-right: 2px; color: var(--q-text-2); }
     .family-menu-title { display: grid; padding: 13px 16px; }
     .family-menu-title span { font-weight: 700; }
     .family-menu-title small { color: var(--q-text-2); }
     .menu-section-title { padding: 12px 16px 6px; color: var(--q-text-3); font-size: .7rem; font-weight: 750; letter-spacing: .07em; text-transform: uppercase; }
 
-    .bell { position: relative; }
-    .badge { position: absolute; top: 5px; right: 4px; min-width: 17px; height: 17px; padding: 0 4px; display: grid; place-items: center; border-radius: 9px; background: var(--q-ipe-500); color: #3A2D00; font-size: .6563rem; font-weight: 800; pointer-events: none; }
+    .bell { position: relative; isolation: isolate; overflow: visible; }
+    .bell .mat-icon { position: relative; z-index: 0; }
+    .badge {
+      position: absolute; top: 2px; right: 0; z-index: 1;
+      min-width: 18px; height: 18px; padding: 0 5px;
+      display: grid; place-items: center; box-sizing: border-box;
+      line-height: 1; white-space: nowrap;
+      border-radius: 9px; background: var(--q-ipe-500); color: #3A2D00;
+      font-size: .6563rem; font-weight: 800; pointer-events: none;
+      box-shadow: 0 0 0 2px var(--q-bg);
+    }
     .avatar-btn { width: 40px; height: 40px; padding: 0; flex: none; overflow: hidden; display: inline-flex; align-items: center; justify-content: center; }
     .avatar-img, .avatar-fallback { width: 32px; height: 32px; aspect-ratio: 1; border-radius: var(--q-organic-1); flex: none; }
     .avatar-img { display: block; object-fit: cover; }
@@ -220,7 +257,20 @@ import { FooterComponent } from './ui/footer.component';
 
     @media (max-width: 1080px) {
       .desktop-nav a mat-icon { display: none; }
-      .household-switch { display: none; }
+      .primary-action {
+        width: 40px;
+        min-width: 40px;
+        height: 40px;
+        padding: 0;
+        margin-right: 2px;
+        border-radius: 50%;
+        --mat-button-icon-spacing: 0px;
+        --mat-button-icon-offset: 0px;
+      }
+      .primary-action .action-label,
+      .primary-action .mdc-button__label { display: none; }
+      .primary-action mat-icon { margin: 0; }
+      .header-actions { gap: 2px; }
     }
     @media (max-width: 820px) {
       .desktop-nav { display: none; }
@@ -228,7 +278,6 @@ import { FooterComponent } from './ui/footer.component';
       .rp-header { height: 60px; padding: 0 var(--q-space-3) 0 var(--q-space-4); gap: var(--q-space-2); }
       .rp-main { padding: var(--q-space-4) var(--q-space-4) calc(84px + env(safe-area-inset-bottom)); }
       .primary-action { display: none; }
-      .household-switch { display: inline-flex; }
       .header-actions { gap: 4px; }
       .header-actions .mat-mdc-icon-button { width: 44px; height: 44px; }
     }
@@ -306,6 +355,10 @@ export class LayoutComponent implements OnInit, OnDestroy {
     const url = this.router.url;
     return url.startsWith('/care-center') || url.startsWith('/family') ||
       url.startsWith('/petshops') || url.startsWith('/veterinaries');
+  }
+
+  get isMobileMoreActive(): boolean {
+    return this.isMoreActive || this.router.url.startsWith('/assistant');
   }
 
   get canAddContent(): boolean { return this.currentHousehold?.role === 'OWNER'; }
@@ -386,6 +439,8 @@ export class LayoutComponent implements OnInit, OnDestroy {
     });
   }
 
+  openAssistant(): void { void this.router.navigate(['/assistant']); }
+
   selectHousehold(item: HouseholdSummary): void {
     if (item.id === this.currentHousehold?.id) return;
     this.householdService.select(item).subscribe({ next: () => { this.eventStateService.notifyEventUpdated(); void this.router.navigate(['/today']); } });
@@ -429,10 +484,12 @@ export class LayoutComponent implements OnInit, OnDestroy {
     if (url.startsWith('/pets/')) return 'Perfil do pet';
     if (url.startsWith('/pets')) return 'Pets';
     if (url.startsWith('/events')) return 'Agenda';
+    if (url.startsWith('/assistant')) return 'Assistente';
     if (url.startsWith('/care-center')) return 'Saúde e finanças';
     if (url.startsWith('/family')) return 'Quem cuida';
     if (url.startsWith('/petshops') || url.startsWith('/veterinaries')) return 'Por perto';
     if (url.startsWith('/profile')) return 'Meu perfil';
+    if (url.startsWith('/integrations/whatsapp')) return 'WhatsApp';
     return 'Hoje';
   }
 
