@@ -29,7 +29,7 @@
 .hero::after { width: 16px; height: 16px; right: 7%; top: 17%; background: var(--q-ipe-500); box-shadow: 29px 19px 0 -4px var(--q-green-500),-18px 30px 0 -5px var(--q-ipe-500); }
 .hero-shell { position: relative; z-index: 1; width: var(--landing-content); margin: 0 auto; display: grid; grid-template-columns: minmax(0,1.02fr) minmax(460px,.98fr); align-items: center; gap: clamp(52px,7vw,104px); }
 .section-kicker { margin: 0 0 14px; display: flex; align-items: center; gap: 10px; color: var(--q-green-700); font-size: .72rem; font-weight: 800; letter-spacing: .1em; line-height: 1.3; text-transform: uppercase; }
-.section-kicker::before { content: ''; width: 25px; height: 3px; flex: 0 0 auto; border-radius: 3px; background: var(--q-ipe-500); }
+.section-kicker::before { content: ''; width: 8px; height: 11px; flex: 0 0 auto; background: var(--q-ipe-500); border-radius: 90% 16% 78% 22% / 22% 78% 24% 76%; transform: rotate(22deg); }
 .hero-copy { max-width: 650px; }
 .hero h1 { margin: 0; max-width: 660px; font-size: clamp(3.1rem,5.4vw,5.35rem); font-weight: 700; line-height: .98; letter-spacing: -.058em; }
 .hero h1 em { position: relative; color: var(--q-green-600); font-style: normal; }
@@ -104,11 +104,11 @@
 .tone-service.routine-node { color: var(--q-ev-service); background: var(--q-ev-service-bg); }
 .tone-vaccine.routine-node { color: var(--q-ev-vaccine); background: var(--q-ev-vaccine-bg); }
 .tone-diary.routine-node { color: var(--q-ev-diary); background: var(--q-ev-diary-bg); }
-.routine-card { padding: 21px; border: 1px solid var(--q-border); border-left: 4px solid var(--q-border-2); border-radius: 18px; background: var(--q-surface-2); box-shadow: var(--q-shadow-sm); }
-.routine-card.tone-medicine { border-left-color: var(--q-ev-medicine); }
-.routine-card.tone-service { border-left-color: var(--q-ev-service); }
-.routine-card.tone-vaccine { border-left-color: var(--q-ev-vaccine); }
-.routine-card.tone-diary { border-left-color: var(--q-ev-diary); }
+.routine-card { padding: 21px; border: 1px solid var(--q-border); border-radius: 18px; background: var(--q-surface-2); box-shadow: var(--q-shadow-sm); }
+.routine-card.tone-medicine { background: color-mix(in srgb, var(--q-ev-medicine-bg) 70%, var(--q-surface)); border-color: color-mix(in srgb, var(--q-ev-medicine) 24%, var(--q-border)); }
+.routine-card.tone-service { background: color-mix(in srgb, var(--q-ev-service-bg) 70%, var(--q-surface)); border-color: color-mix(in srgb, var(--q-ev-service) 24%, var(--q-border)); }
+.routine-card.tone-vaccine { background: color-mix(in srgb, var(--q-ev-vaccine-bg) 70%, var(--q-surface)); border-color: color-mix(in srgb, var(--q-ev-vaccine) 24%, var(--q-border)); }
+.routine-card.tone-diary { background: color-mix(in srgb, var(--q-ev-diary-bg) 70%, var(--q-surface)); border-color: color-mix(in srgb, var(--q-ev-diary) 24%, var(--q-border)); }
 .routine-card h3 { margin: 0; font-size: 1rem; }
 .routine-card p { margin: 7px 0 0; color: var(--q-text-2); font-size: .82rem; line-height: 1.6; }
 .routine-meta { width: fit-content; margin-top: 15px; padding: 5px 9px; display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; color: var(--q-text-2); background: var(--q-surface-3); font-size: .63rem; font-weight: 750; }
@@ -117,7 +117,7 @@
 .u-reveal { opacity: 0; transform: translateY(20px); transition: opacity 520ms ease,transform 520ms cubic-bezier(.22,1,.36,1); }
 .u-reveal.is-visible { opacity: 1; transform: translateY(0); }
 
-@media (hover:hover) and (pointer:fine) { .routine-card { transition: transform 180ms ease,box-shadow 180ms ease,border-color 180ms ease; } .routine-card:hover { transform: translateY(-2px); box-shadow: var(--q-shadow-md); } }
+@media (hover:hover) and (pointer:fine) { .routine-card { transition: border-color 160ms ease; } .routine-card:hover { border-color: var(--q-border-2); } }
 @media (max-width:1100px) { .topbar-links { display: none; } .topbar-nav { grid-template-columns: auto 1fr; } .topbar-actions { justify-self: end; } .hero { min-height: auto; } .hero-shell { grid-template-columns: minmax(0,.9fr) minmax(420px,1.1fr); gap: 40px; } .hero h1 { font-size: clamp(3rem,6vw,4.7rem); } .hero-visual { min-height: 570px; } .family-float { right: 0; } .day-shell { gap: 60px; } }
 @media (max-width:900px) {
   :host { --landing-content: min(100% - 40px,720px); }

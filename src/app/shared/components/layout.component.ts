@@ -49,7 +49,7 @@ import { FooterComponent } from './ui/footer.component';
           <a routerLink="/pets" routerLinkActive="on"><mat-icon>pets</mat-icon>Pets</a>
           <a routerLink="/events" routerLinkActive="on"><mat-icon>calendar_month</mat-icon>Agenda</a>
           <a routerLink="/assistant" routerLinkActive="on"><mat-icon>auto_awesome</mat-icon>Assistente</a>
-          <button mat-button [matMenuTriggerFor]="exploreMenu" [class.on]="isMoreActive">
+          <button mat-button [matMenuTriggerFor]="exploreMenuDesktop" [class.on]="isMoreActive">
             <span>Mais</span><mat-icon>expand_more</mat-icon>
           </button>
         </nav>
@@ -59,12 +59,12 @@ import { FooterComponent } from './ui/footer.component';
         <div class="header-actions">
           @if (canAddContent) {
             @if (hasPets) {
-              <button mat-flat-button class="primary-action" [matMenuTriggerFor]="createMenu">
-                <mat-icon>add</mat-icon><span>Planejar cuidado</span>
+              <button mat-flat-button class="primary-action" [matMenuTriggerFor]="createMenu" aria-label="Planejar cuidado">
+                <mat-icon>add</mat-icon><span class="action-label">Planejar cuidado</span>
               </button>
             } @else {
-              <button mat-flat-button class="primary-action" (click)="startPrimaryAction()">
-                <mat-icon>add</mat-icon><span>Cadastrar pet</span>
+              <button mat-flat-button class="primary-action" (click)="startPrimaryAction()" aria-label="Cadastrar pet">
+                <mat-icon>add</mat-icon><span class="action-label">Cadastrar pet</span>
               </button>
             }
           }
@@ -112,13 +112,20 @@ import { FooterComponent } from './ui/footer.component';
           }
         }
         <a routerLink="/events" routerLinkActive="on"><mat-icon>calendar_month</mat-icon><span>Agenda</span></a>
-        <button type="button" [matMenuTriggerFor]="exploreMenu" [class.on]="isMoreActive" aria-label="Abrir mais opções">
+        <button type="button" [matMenuTriggerFor]="exploreMenuMobile" [class.on]="isMobileMoreActive" aria-label="Abrir mais opções">
           <mat-icon>more_horiz</mat-icon><span>Mais</span>
         </button>
       </nav>
     </div>
 
-    <mat-menu #exploreMenu="matMenu" xPosition="before">
+    <mat-menu #exploreMenuDesktop="matMenu" xPosition="before">
+      <div class="menu-section-title" (click)="$event.stopPropagation()">Outros espaços</div>
+      <button mat-menu-item routerLink="/care-center"><mat-icon>assignment</mat-icon><span>Saúde e finanças</span></button>
+      <button mat-menu-item routerLink="/family"><mat-icon>group</mat-icon><span>Quem cuida</span></button>
+      <button mat-menu-item routerLink="/petshops"><mat-icon>near_me</mat-icon><span>Por perto</span></button>
+    </mat-menu>
+
+    <mat-menu #exploreMenuMobile="matMenu" xPosition="before">
       <div class="menu-section-title" (click)="$event.stopPropagation()">Outros espaços</div>
       <button mat-menu-item routerLink="/assistant"><mat-icon>auto_awesome</mat-icon><span>Assistente</span></button>
       <button mat-menu-item routerLink="/care-center"><mat-icon>assignment</mat-icon><span>Saúde e finanças</span></button>
@@ -203,7 +210,7 @@ import { FooterComponent } from './ui/footer.component';
 
     .header-actions { display: flex; align-items: center; gap: 3px; }
     .header-actions .mat-mdc-icon-button { color: var(--q-text-2); }
-    .primary-action { margin-right: var(--q-space-2); white-space: nowrap; }
+    .primary-action { margin-right: var(--q-space-2); min-width: 0; white-space: nowrap; }
     .household-switch { margin-right: 2px; color: var(--q-text-2); }
     .family-menu-title { display: grid; padding: 13px 16px; }
     .family-menu-title span { font-weight: 700; }
@@ -250,7 +257,20 @@ import { FooterComponent } from './ui/footer.component';
 
     @media (max-width: 1080px) {
       .desktop-nav a mat-icon { display: none; }
-      .household-switch { display: none; }
+      .primary-action {
+        width: 40px;
+        min-width: 40px;
+        height: 40px;
+        padding: 0;
+        margin-right: 2px;
+        border-radius: 50%;
+        --mat-button-icon-spacing: 0px;
+        --mat-button-icon-offset: 0px;
+      }
+      .primary-action .action-label,
+      .primary-action .mdc-button__label { display: none; }
+      .primary-action mat-icon { margin: 0; }
+      .header-actions { gap: 2px; }
     }
     @media (max-width: 820px) {
       .desktop-nav { display: none; }
@@ -258,7 +278,6 @@ import { FooterComponent } from './ui/footer.component';
       .rp-header { height: 60px; padding: 0 var(--q-space-3) 0 var(--q-space-4); gap: var(--q-space-2); }
       .rp-main { padding: var(--q-space-4) var(--q-space-4) calc(84px + env(safe-area-inset-bottom)); }
       .primary-action { display: none; }
-      .household-switch { display: inline-flex; }
       .header-actions { gap: 4px; }
       .header-actions .mat-mdc-icon-button { width: 44px; height: 44px; }
     }
@@ -336,6 +355,10 @@ export class LayoutComponent implements OnInit, OnDestroy {
     const url = this.router.url;
     return url.startsWith('/care-center') || url.startsWith('/family') ||
       url.startsWith('/petshops') || url.startsWith('/veterinaries');
+  }
+
+  get isMobileMoreActive(): boolean {
+    return this.isMoreActive || this.router.url.startsWith('/assistant');
   }
 
   get canAddContent(): boolean { return this.currentHousehold?.role === 'OWNER'; }

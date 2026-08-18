@@ -197,26 +197,27 @@ input:-webkit-autofill:focus {
    Classes globais da marca
    ============================================================ */
 
-/* Overline de seção (eyebrow com traço de ipê) */
+/* Overline de seção — pétala de ipê, não travessão */
 .q-overline {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--q-ipe-600);
-  /* respiro padrão entre o eyebrow e o título que vem abaixo */
   margin-bottom: 6px;
 }
 
 .q-overline::before {
   content: '';
-  width: 20px;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--q-ipe-500);
+  width: 8px;
+  height: 11px;
+  flex: none;
+  background: currentColor;
+  border-radius: 90% 16% 78% 22% / 22% 78% 24% 76%;
+  transform: rotate(22deg);
 }
 
 /* Chips de tipo de cuidado — único lugar do app com essas cores */
